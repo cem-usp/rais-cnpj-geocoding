@@ -18,6 +18,7 @@ meta:
     Brazilian Center for Analysis and Planning (CEBRAP). CEM brings together a
     multidisciplinary team of demographers, political scientists, sociologists,
     geographers, economists, and anthropologists.
+
   founded: 2000
 
 color:
@@ -82,7 +83,7 @@ typography:
     weight: 800
   monospace: Roboto Mono
   monospace-inline:
-    color: comp-blue-1
+    color: black
     background-color: gray-l95
   monospace-block:
     background-color: gray-l95

@@ -12,6 +12,8 @@ This repository provides a fully reproducible pipeline for processing and [geoco
 
 The pipeline report is available [here](https://cem-usp.github.io/rais-cnpj-geocoding/).
 
+> If you find this project useful, please consider giving it a star! [![GitHub repo stars](https://img.shields.io/github/stars/cem-usp/logo-pattern)](https://github.com/cem-usp/rais-cnpj-geocoding/)
+
 ## Data Availability
 
 [![OSF ID](https://img.shields.io/badge/OSF%20ID-p5ufj-1284C5.svg)](https://osf.io/p5ufj/)
