@@ -31,7 +31,7 @@ website:
     image: images/og-image.png
     image-width: 2400
     image-height: 1600
-    image-alt: AcessoSAN Logo
+    image-alt: Center for Metropolitan Studies
   repo-branch: main
   repo-actions: [edit, source, issue]
   search: false
