@@ -1,0 +1,142 @@
+[
+  {
+    "objectID": "index.html#overview",
+    "href": "index.html#overview",
+    "title": "",
+    "section": "Overview",
+    "text": "Overview\nThis report provides a fully reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE)."
+  },
+  {
+    "objectID": "index.html#problem",
+    "href": "index.html#problem",
+    "title": "",
+    "section": "Problem",
+    "text": "Problem\nThe AcessoSAN project aims to develop methods for measuring and analyzing inequities in access to healthy food in favelas and other urban communities. Achieving this requires a reliable and up-to-date database of food retail establishments.\nThe RAIS database includes the CNPJs of companies operating in Brazil, among them food retail establishments. However, it does not provide geocoded information, which is required for spatial analyses. This pipeline addresses that limitation by processing and geocoding the CNPJs from the RAIS database."
+  },
+  {
+    "objectID": "index.html#data-availability",
+    "href": "index.html#data-availability",
+    "title": "",
+    "section": "Data Availability",
+    "text": "Data Availability\n\n\n\nThe processed data are available in both rds and csv formats through a dedicated repository on the Open Science Framework (OSF). A metadata file is included alongside the validated datasets.\nBecause the raw data are not publicly available, only authorized personnel can access the processed files. They are protected with RSA 4096-bit encryption (OpenSSL) and a 32-byte password to ensure data security.\nIf you already have access to the OSF repository and the project keys, click here to access the data. A backup copy of the raw data is also stored on OSF and can be accessed here. You can also retrieve these files directly from R using the osfr package."
+  },
+  {
+    "objectID": "index.html#methods",
+    "href": "index.html#methods",
+    "title": "",
+    "section": "Methods",
+    "text": "Methods\nSource of Data\nThe data used in this report come from the following sources:\n\nBrazilian Ministry of Labor and Employment (MTE): Data on food retail establishments from the Annual Social Information Report (RAIS) provided by request (private data), used for company identification.\nBrazilian Institute of Geography and Statistics (IBGE): Open spatial datasets of Brazilian addresses from the National Address Register for Statistical Purposes (CNEFE), used for geocoding via the geocodebr R package.\nData Munging\nThe data munging follow the data science workflow outlined by Wickham et al. (2023), as illustrated in Figure 1. All processes were made using the Quarto publishing system (Allaire et al., n.d.), the R programming language (R Core Team, n.d.) and several R packages.\nSpatial data processing was performed using the terra R package (Hijmans, n.d.) and the rspatial framework. For data manipulation and workflow, priority was given to packages from the tidyverse and rOpenSci ecosystems, as well as other packages adhering to the tidy tools manifesto (Wickham, 2023).\n\n\nFigure 1: Data science workflow created by Wickham, Çetinkaya-Runde, and Grolemund.\n\n\nSource: Reproduced from Wickham et al. (2023).\n\n\n\nCode Style\nThe Tidyverse code style guide and design principles were followed to ensure consistency and enhance readability.\nReproducibility\nThe pipeline is fully reproducible and can be run again at any time. To ensure consistent results, the renv package (Ushey & Wickham, n.d.) is used to manage and restore the R environment. See the README file in the code repository to learn how to run it."
+  },
+  {
+    "objectID": "index.html#set-the-environment",
+    "href": "index.html#set-the-environment",
+    "title": "",
+    "section": "Set the Environment",
+    "text": "Set the Environment\nLoad Packages\n\nlibrary(askpass)\nlibrary(brandr)\nlibrary(beepr)\nlibrary(dplyr)\nlibrary(fs)\nlibrary(ggplot2)\nlibrary(here)\nlibrary(htmltools)\nlibrary(lockr) # github.com/danielvartan/lockr\nlibrary(magrittr)\nlibrary(nanoparquet)\nlibrary(osfr)\n\nSet Keys\n\nosf_pat &lt;- Sys.getenv(\"OSF_PAT\") # askpass()\n\n\nosf_auth(osf_pat)\n#&gt; Registered PAT from the provided token\n\n\npublic_key &lt;- here(\"_ssh\", \"id_rsa.pub\")\n\n\nprivate_key &lt;- here(\"_ssh\", \"id_rsa\")\n\n\npassword &lt;- Sys.getenv(\"ACESSOSAN_PASSWORD\") # askpass()\n\nSet Initial Variables\n\nset.seed(2025)"
+  },
+  {
+    "objectID": "index.html#download-the-raw-data",
+    "href": "index.html#download-the-raw-data",
+    "title": "",
+    "section": "Download the Raw Data",
+    "text": "Download the Raw Data\nSet Parameters\n\nraw_data_dir &lt;- here(\"data-raw\")\n\n\nif (!dir_exists(raw_data_dir)) {\n  dir_create(raw_data_dir, recurse = TRUE)\n}\n\nDownload File\n\nosf_raw_data_id &lt;- \"tdswp\"\n\n\nosf_raw_data_files &lt;-\n  osf_raw_data_id |&gt;\n  osf_retrieve_node() |&gt;\n  osf_ls_files(\n    type = \"file\",\n    pattern = \"rais_alim_\",\n    n_max = Inf\n  )\n\nosf_raw_data_files\n\n\n  \n\n\n\n\nraw_data_file &lt;-\n  osf_raw_data_files |&gt;\n  osf_download(path = raw_data_dir, conflicts = \"overwrite\") |&gt;\n  extract2(\"local_path\")\n\nUnlock the File\n\nraw_data_file &lt;-\n  raw_data_file |&gt;\n  unlock_file(\n    private_key = private_key,\n    suffix = \".lockr\",\n    remove_file = TRUE,\n    password = password\n  )"
+  },
+  {
+    "objectID": "index.html#read-the-data",
+    "href": "index.html#read-the-data",
+    "title": "",
+    "section": "Read the Data",
+    "text": "Read the Data\n\ndata &lt;- raw_data_file |&gt; read_parquet()\n\n\ndata |&gt; glimpse()\n#&gt; Rows: 731,497\n#&gt; Columns: 30\n#&gt; $ X                        &lt;int&gt; 10, 17, 27, 31, 80, 85, 91, 103, 111, 119,…\n#&gt; $ nu_cei_vinculado         &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …\n#&gt; $ nu_cep_estab             &lt;int&gt; 6755185, 76650000, 95880000, 35600000, 790…\n#&gt; $ co_cnae95_classe         &lt;int&gt; 52248, 55212, 55247, 52124, 55212, 52132, …\n#&gt; $ nu_cnpj_cei              &lt;dbl&gt; 5046455000161, 30119065000111, 15393330000…\n#&gt; $ nu_cnpj_raiz             &lt;int&gt; 5046455, 30119065, 15393330, 2508004, 2756…\n#&gt; $ dt_abertura              &lt;chr&gt; \"2002-04-19\", \"2018-04-05\", \"2012-04-16\", …\n#&gt; $ dt_baixa                 &lt;chr&gt; \"\", \"\", \"\", \"\", \"2019-09-26\", \"2023-08-01\"…\n#&gt; $ dt_encerramento          &lt;chr&gt; \"\", \"\", \"\", \"\", \"2019-09-26\", \"2023-08-01\"…\n#&gt; $ ds_email_estab           &lt;chr&gt; \"\", \"\", \"\", \"\", \"\", \"\", \"\", \"\", \"\", \"\", \"\"…\n#&gt; $ in_cei_vinculado         &lt;int&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …\n#&gt; $ id_estab_participa_pat   &lt;int&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …\n#&gt; $ in_rais_negativa         &lt;int&gt; 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, …\n#&gt; $ in_simples               &lt;int&gt; 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, …\n#&gt; $ co_municipio             &lt;int&gt; 355280, 521056, 430780, 310740, 500270, 41…\n#&gt; $ co_natureza_juridica     &lt;int&gt; 2062, 2135, 2135, 2062, 2135, 2062, 2062, …\n#&gt; $ no_logradouro            &lt;chr&gt; \"R SANTO ONOFRE 200 TERREO.\", \"R 01 SN QUA…\n#&gt; $ nu_logradouro            &lt;int&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …\n#&gt; $ no_bairro                &lt;chr&gt; \"JARDIM SANTA ROSA\", \"RESIDENCIAL BENEDITO…\n#&gt; $ nu_tel_empresa           &lt;dbl&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …\n#&gt; $ qt_vinculos_ativos       &lt;int&gt; 21, 0, 0, 1, 4, 0, 0, 4, 2, 0, 93, 4, 6, 1…\n#&gt; $ qt_vinculos_clt          &lt;int&gt; 21, 0, 0, 1, 4, 0, 0, 4, 2, 0, 93, 4, 6, 1…\n#&gt; $ qt_vinculos_estatutarios &lt;int&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, …\n#&gt; $ no_razao_social          &lt;chr&gt; \"ANSERVE COMERCIAL LTDA - ME\", \"0\", \"NÃO I…\n#&gt; $ in_tamanho_estab         &lt;int&gt; 5, 1, 1, 2, 2, 1, 1, 2, 2, 1, 6, 2, 3, 2, …\n#&gt; $ tp_estabelecimento       &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, …\n#&gt; $ co_ibge_subsetor         &lt;int&gt; 16, 21, 13, 16, 21, 16, 21, 16, 16, 21, 16…\n#&gt; $ in_atividade_ano         &lt;int&gt; 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, …\n#&gt; $ co_cnae20_classe         &lt;int&gt; 47237, 56112, 56201, 47113, 56112, 47121, …\n#&gt; $ co_cnae20_subclasse      &lt;int&gt; 4723700, 5611201, 5620104, 4711302, 561120…"
+  },
+  {
+    "objectID": "index.html#filter-the-data",
+    "href": "index.html#filter-the-data",
+    "title": "",
+    "section": "Filter the Data",
+    "text": "Filter the Data"
+  },
+  {
+    "objectID": "index.html#tidy-the-data",
+    "href": "index.html#tidy-the-data",
+    "title": "",
+    "section": "Tidy the Data",
+    "text": "Tidy the Data"
+  },
+  {
+    "objectID": "index.html#transform-the-data",
+    "href": "index.html#transform-the-data",
+    "title": "",
+    "section": "Transform the Data",
+    "text": "Transform the Data"
+  },
+  {
+    "objectID": "index.html#validate-the-data",
+    "href": "index.html#validate-the-data",
+    "title": "",
+    "section": "Validate the Data",
+    "text": "Validate the Data"
+  },
+  {
+    "objectID": "index.html#arrange-the-data",
+    "href": "index.html#arrange-the-data",
+    "title": "",
+    "section": "Arrange the Data",
+    "text": "Arrange the Data"
+  },
+  {
+    "objectID": "index.html#geocode-the-data",
+    "href": "index.html#geocode-the-data",
+    "title": "",
+    "section": "Geocode the Data",
+    "text": "Geocode the Data"
+  },
+  {
+    "objectID": "index.html#data-dictionary",
+    "href": "index.html#data-dictionary",
+    "title": "",
+    "section": "Data Dictionary",
+    "text": "Data Dictionary"
+  },
+  {
+    "objectID": "index.html#save-the-valid-data",
+    "href": "index.html#save-the-valid-data",
+    "title": "",
+    "section": "Save the Valid Data",
+    "text": "Save the Valid Data"
+  },
+  {
+    "objectID": "index.html#visualize-the-data",
+    "href": "index.html#visualize-the-data",
+    "title": "",
+    "section": "Visualize the Data",
+    "text": "Visualize the Data"
+  },
+  {
+    "objectID": "index.html#citation",
+    "href": "index.html#citation",
+    "title": "",
+    "section": "Citation",
+    "text": "Citation\n\n\n\n\n\n\nWhen using this data, you must also cite the original data sources.\n\n\n\nTo cite this work, please use the following format:\nVartanian, D., Fernandes, C. N., & Giannotti, M. A. (2025). A reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE) [Computer software]. Center for Metropolitan Studies of the University of São Paulo. https://cem-usp.github.io/rais-cnpj-geocoding\nA BibTeX entry for LaTeX users is\n@software{vartanian2025,\n  title = {A reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE)},\n  author = {{Daniel Vartanian} and {Camila Nastari Fernandes} and {Mariana Abrantes Giannotti}},\n  year = {2025},\n  address = {São Paulo},\n  institution = {Center for Metropolitan Studies of the University of São Paulo},\n  langid = {en},\n  url = {https://cem-usp.github.io/rais-cnpj-geocoding}\n}"
+  },
+  {
+    "objectID": "index.html#license",
+    "href": "index.html#license",
+    "title": "",
+    "section": "License",
+    "text": "License\n\n \n\n\n\n\n\n\n\nThe original data sources may have their own license terms and conditions.\n\n\n\nThe code in this report is licensed under the GNU General Public License Version 3, while the report is available under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International.\nCopyright (C) 2025 Daniel Vartanian\n\nThe code in this report is free software: you can redistribute it and/or\nmodify it under the terms of the GNU General Public License as published by the\nFree Software Foundation, either version 3 of the License, or (at your option)\nany later version.\n\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY\nWARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A\nPARTICULAR PURPOSE. See the GNU General Public License for more details.\n\nYou should have received a copy of the GNU General Public License along with\nthis program. If not, see &lt;https://www.gnu.org/licenses/&gt;."
+  },
+  {
+    "objectID": "index.html#acknowledgments",
+    "href": "index.html#acknowledgments",
+    "title": "",
+    "section": "Acknowledgments",
+    "text": "Acknowledgments\n\n\n\n\n\nThis work is part of a research project by the Polytechnic School (Poli) of the University of São Paulo (USP), in partnership with the Secretariat for Food and Nutrition Security (SESAN) of the Ministry of Social Development, Family, and the Fight Against Hunger (MDS), titled: AcessoSAN: Mapping Food Access to Support Public Policies on Food and Nutrition Security and Hunger Reduction in Brazilian Cities.\n\n\n\n\n\n\nThis work was developed with support from the Center for Metropolitan Studies (CEM) based at the School of Philosophy, Letters and Human Sciences (FFLCH) of the University of São Paulo (USP) and at the Brazilian Center for Analysis and Planning (CEBRAP).\n\n\n\n\n\n\nThis study was financed, in part, by the São Paulo Research Foundation (FAPESP), Brazil. Process Number 2025/17879-2."
+  },
+  {
+    "objectID": "index.html#references",
+    "href": "index.html#references",
+    "title": "",
+    "section": "References",
+    "text": "References\n\n\nAllaire, J. J., Teague, C., Xie, Y., & Dervieux, C. (n.d.). Quarto [Computer software]. Zenodo. https://doi.org/10.5281/ZENODO.5960048\n\n\nHijmans, R. J. (n.d.). terra: Spatial Data Analysis [Computer software]. https://rspatial.org\n\n\nR Core Team. (n.d.). R: A language and environment for statistical computing [Computer software]. R Foundation for Statistical Computing. https://www.R-project.org\n\n\nUshey, K., & Wickham, H. (n.d.). renv: Project environments [Computer software]. https://doi.org/10.32614/CRAN.package.renv\n\n\nWickham, H. (2023). The tidy tools manifesto. Tidyverse. https://tidyverse.tidyverse.org/articles/manifesto.html\n\n\nWickham, H., Çetinkaya-Rundel, M., & Grolemund, G. (2023). R for data science: Import, tidy, transform, visualize, and model data (2nd ed.). O’Reilly Media. https://r4ds.hadley.nz"
+  }
+]

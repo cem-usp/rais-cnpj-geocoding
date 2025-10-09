@@ -1,0 +1,344 @@
+```{r}
+#| label: setup
+#| include: false
+
+library(here)
+
+source(here("R", "_setup.R"))
+```
+
+<!-- badges: start -->
+[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-bd0000.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC_BY--NC--SA_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+<!-- badges: end -->
+
+::: {.callout-important}
+This pipeline is a **Work In Progress** (WIP) and is under active development. It may not yet be stable or suitable for public use. Please use it with caution and report any issues you encounter.
+:::
+
+## Overview
+
+This report provides a fully reproducible pipeline for processing and [geocoding](https://en.wikipedia.org/wiki/Address_geocoding) [CNPJ](https://en.wikipedia.org/wiki/CNPJ)s from the Annual Social Information Report ([RAIS](https://www.rais.gov.br/)) of the Brazilian Ministry of Labor and Employment ([MTE](https://www.gov.br/trabalho-e-emprego)).
+
+## Problem
+
+The [AcessoSAN](https://doi.org/10.17605/OSF.IO/ZE6WT) project aims to develop methods for measuring and analyzing inequities in access to healthy food in favelas and other urban communities. Achieving this requires a reliable and up-to-date database of food retail establishments.
+
+The [RAIS](https://www.rais.gov.br/) database includes the [CNPJ](https://en.wikipedia.org/wiki/CNPJ)s of companies operating in Brazil, among them food retail establishments. However, it does not provide [geocoded information](https://en.wikipedia.org/wiki/Address_geocoding), which is required for spatial analyses. This pipeline addresses that limitation by processing and geocoding the [CNPJ](https://en.wikipedia.org/wiki/CNPJ)s from the RAIS database.
+
+## Data Availability
+
+::: {style="text-align: left;"}
+[![](https://img.shields.io/badge/OSF%20ID-p5ufj-1284C5.svg)](https://osf.io/p5ufj/)
+:::
+
+The processed data are available in both [`rds`](https://rdrr.io/r/base/readRDS.html) and [`csv`](https://en.wikipedia.org/wiki/Comma-separated_values) formats through a dedicated repository on the Open Science Framework ([OSF](https://osf.io/)). A metadata file is included alongside the validated datasets.
+
+Because the raw data are not publicly available, only authorized personnel can access the processed files. They are protected with [RSA](https://en.wikipedia.org/wiki/RSA_cryptosystem) 4096-bit encryption ([OpenSSL](https://www.openssl.org/)) and a 32-byte password to ensure data security.
+
+If you already have access to the OSF repository and the project keys, click [here](https://osf.io/) to access the data. A backup copy of the raw data is also stored on OSF and can be accessed [here](https://osf.io/tdswp/). You can also retrieve these files directly from [R](https://www.r-project.org/) using the [`osfr`](https://docs.ropensci.org/osfr/) package.
+
+## Methods
+
+### Source of Data
+
+The data used in this report come from the following sources:
+
+- Brazilian  Ministry of Labor and Employment ([MTE](https://www.gov.br/trabalho-e-emprego)): Data on food retail establishments from the Annual Social Information Report ([RAIS](https://www.rais.gov.br/)) provided by request (**private data**), used for company identification.
+- Brazilian Institute of Geography and Statistics ([IBGE](https://www.ibge.gov.br/)): Open spatial datasets of Brazilian addresses from the National Address Register for Statistical Purposes ([CNEFE](https://www.ibge.gov.br/estatisticas/sociais/populacao/38734-cadastro-nacional-de-enderecos-para-fins-estatisticos.html)), used for geocoding via the [`geocodebr`](https://ipeagit.github.io/geocodebr/) R package.
+
+### Data Munging
+
+The data munging follow the data science workflow outlined by @wickham2023e, as illustrated in [@fig-wickham-at-al-2023-figure-1]. All processes were made using the [Quarto](https://quarto.org/) publishing system [@allaire], the [R programming language](https://www.r-project.org/) [@rcoreteama] and several R packages.
+
+Spatial data processing was performed using the [`terra`](https://rspatial.github.io/terra/reference/terra-package.html) R package [@hijmans] and the [rspatial](https://rspatial.org/) framework. For data manipulation and workflow, priority was given to packages from the [tidyverse](https://www.tidyverse.org/) and [rOpenSci](https://ropensci.org/) ecosystems, as well as other packages adhering to the tidy tools manifesto [@wickham2023c].
+
+::: {#fig-wickham-at-al-2023-figure-1}
+![](images/wickham-at-al-2023-figure-1.png){width=75%}
+
+[Source: Reproduced from @wickham2023e.]{.legend}
+
+Data science workflow created by Wickham, Çetinkaya-Runde, and Grolemund.
+:::
+
+### Code Style
+
+The Tidyverse [code style guide](https://style.tidyverse.org/) and [design principles](https://design.tidyverse.org/) were followed to ensure consistency and enhance readability.
+
+### Reproducibility
+
+The pipeline is fully reproducible and can be run again at any time. To ensure consistent results, the [`renv`](https://rstudio.github.io/renv/) package [@usheya] is used to manage and restore the R environment. See the [README](https://github.com/cem-usp/rais-cnpj-geocoding/blob/main/README.md) file in the code repository to learn how to run it.
+
+## Set the Environment
+
+### Load Packages
+
+```{r}
+#| code-fold: false
+#| output: false
+
+library(askpass)
+library(brandr)
+library(beepr)
+library(dplyr)
+library(fs)
+library(ggplot2)
+library(here)
+library(htmltools)
+library(lockr) # github.com/danielvartan/lockr
+library(magrittr)
+library(nanoparquet)
+library(osfr)
+```
+
+### Set Keys
+
+```{r}
+osf_pat <- Sys.getenv("OSF_PAT") # askpass()
+```
+
+```{r}
+osf_auth(osf_pat)
+```
+
+```{r}
+public_key <- here("_ssh", "id_rsa.pub")
+```
+
+```{r}
+private_key <- here("_ssh", "id_rsa")
+```
+
+```{r}
+password <- Sys.getenv("ACESSOSAN_PASSWORD") # askpass()
+```
+
+### Set Initial Variables
+
+```{r}
+set.seed(2025)
+```
+
+## Download the Raw Data
+
+### Set Parameters
+
+```{r}
+raw_data_dir <- here("data-raw")
+```
+
+```{r}
+if (!dir_exists(raw_data_dir)) {
+  dir_create(raw_data_dir, recurse = TRUE)
+}
+```
+
+### Download File
+
+```{r}
+osf_raw_data_id <- "tdswp"
+```
+
+```{r}
+osf_raw_data_files <-
+  osf_raw_data_id |>
+  osf_retrieve_node() |>
+  osf_ls_files(
+    type = "file",
+    pattern = "rais_alim_",
+    n_max = Inf
+  )
+
+osf_raw_data_files
+```
+
+```{r}
+#| eval: false
+
+raw_data_file <-
+  osf_raw_data_files |>
+  osf_download(path = raw_data_dir, conflicts = "overwrite") |>
+  extract2("local_path")
+```
+
+```{r}
+#| echo: false
+
+raw_data_file <- here(raw_data_dir, "rais_alim_2022.parquet")
+```
+
+### Unlock the File
+
+```{r}
+#| eval: false
+#| output: false
+
+raw_data_file <-
+  raw_data_file |>
+  unlock_file(
+    private_key = private_key,
+    suffix = ".lockr",
+    remove_file = TRUE,
+    password = password
+  )
+```
+
+## Read the Data
+
+```{r}
+data <- raw_data_file |> read_parquet()
+```
+
+```{r}
+data |> glimpse()
+```
+
+## Filter the Data
+
+## Tidy the Data
+
+## Transform the Data
+
+## Validate the Data
+
+## Arrange the Data
+
+## Geocode the Data
+
+## Data Dictionary
+
+## Save the Valid Data
+
+## Visualize the Data
+
+## Citation
+
+::: {.callout-important}
+When using this data, you must also cite the original data sources.
+:::
+
+To cite this work, please use the following format:
+
+Vartanian, D., Fernandes, C. N., & Giannotti, M. A. (2025). *A reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE)* \[Computer software\]. Center for Metropolitan Studies of the University of São Paulo. <https://cem-usp.github.io/rais-cnpj-geocoding>
+
+A BibTeX entry for LaTeX users is
+
+```latex
+@software{vartanian2025,
+  title = {A reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE)},
+  author = {{Daniel Vartanian} and {Camila Nastari Fernandes} and {Mariana Abrantes Giannotti}},
+  year = {2025},
+  address = {São Paulo},
+  institution = {Center for Metropolitan Studies of the University of São Paulo},
+  langid = {en},
+  url = {https://cem-usp.github.io/rais-cnpj-geocoding}
+}
+```
+
+## License
+
+::: {style="text-align: left;"}
+[![License: GPLv3](https://img.shields.io/badge/license-GPLv3-bd0000.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC_BY--NC--SA_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+:::
+
+::: {.callout-important}
+The original data sources may have their own license terms and conditions.
+:::
+
+The code in this report is licensed under the [GNU General Public License Version 3](https://www.gnu.org/licenses/gpl-3.0), while the report is available under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+
+``` text
+Copyright (C) 2025 Daniel Vartanian
+
+The code in this report is free software: you can redistribute it and/or
+modify it under the terms of the GNU General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <https://www.gnu.org/licenses/>.
+```
+
+## Acknowledgments
+
+```{r, results='asis'}
+#| eval: true
+#| echo: false
+
+blocks <- list(
+  list(
+    logo_link = "https://doi.org/10.17605/OSF.IO/ZE6WT",
+    logo_src = "images/acessosan-logo.svg",
+    logo_alt = "AcessoSAN Logo",
+    logo_width = 140,
+    text = 'This work is part of a research project by the Polytechnic School (<a href="https://www.poli.usp.br/">Poli</a>) of the University of São Paulo (<a href="https://usp.br/">USP</a>), in partnership with the Secretariat for Food and Nutrition Security (<a href="https://www.gov.br/mds/pt-br/orgaos/SESAN">SESAN</a>) of the Ministry of Social Development, Family, and the Fight Against Hunger (<a href="https://www.gov.br/mds/">MDS</a>), titled: <em>AcessoSAN: Mapping Food Access to Support Public Policies on Food and Nutrition Security and Hunger Reduction in Brazilian Cities</em>.'
+  ),
+  list(
+    logo_link = "https://centrodametropole.fflch.usp.br",
+    logo_src = "images/cem-icon.svg",
+    logo_alt = "CEM Logo",
+    logo_width = 190,
+    text = 'This work was developed with support from the Center for Metropolitan Studies (<a href="https://centrodametropole.fflch.usp.br">CEM</a>) based at the School of Philosophy, Letters and Human Sciences (<a href="https://www.fflch.usp.br/">FFLCH</a>) of the University of São Paulo (<a href="https://usp.br">USP</a>) and at the Brazilian Center for Analysis and Planning (<a href="https://cebrap.org.br/">CEBRAP</a>).'
+  ),
+  list(
+    logo_link = "https://fapesp.br/",
+    logo_src = "images/fapesp-logo.svg",
+    logo_alt = "FAPESP Logo",
+    logo_width = 160,
+    text = 'This study was financed, in part, by the São Paulo Research Foundation (<a href="https://fapesp.br/">FAPESP</a>), Brazil. Process Number <a href="https://bv.fapesp.br/en/bolsas/231507/geospatial-data-science-applied-to-food-policies/">2025/17879-2</a>.'
+  )
+)
+
+blocks |>
+  lapply(
+    function(x) {
+      div(
+        style = paste0(
+          "display: flex; ",
+          "align-items: flex-start; ",
+          "margin-bottom: 2em;"
+        ),
+        div(
+          style = paste0(
+            "flex: 0 0 30%; ",
+            "display: flex; ",
+            "justify-content: center; ",
+            "margin: auto 0;"
+          ),
+          tags$a(
+            href = x$logo_link,
+            tags$img(
+              src = x$logo_src,
+              alt = x$logo_alt,
+              style = paste0(
+                "max-width: ", x$logo_width, "px; ",
+                "width: 100%; ",
+                "height: auto;"
+              )
+            )
+          )
+        ),
+        div(
+          style = paste0(
+            "flex: 1; ",
+            "padding-left: 1em;"
+          ),
+          HTML(x$text)
+        )
+      )
+    }
+  ) |>
+  tagList() |>
+  browsable()
+```
+
+## References {.unnumbered}
+
+::: {#refs}
+:::

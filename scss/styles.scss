@@ -1,0 +1,90 @@
+/*-- scss:defaults --*/
+
+$content-padding-top: 0.5rem;
+
+$callout-color-note: #014691;
+$callout-color-tip: #1d8f01;
+$callout-color-caution: #8f0170;
+$callout-color-warning: #8f5a01;
+$callout-color-important: #910c01;
+
+/*-- scss:rules --*/
+
+/* Additional Google Fonts ----- */
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+
+/* Body ----- */
+
+body {
+  color: $brand-black;
+}
+
+/* Navigation ----- */
+
+.bi-github {
+  color: $brand-white;
+}
+
+/* Table of Contents ----- */
+
+.sidebar nav[role="doc-toc"] > h2, .sidebar nav[role="doc-toc"] > .h2 {
+  font-weight: bold;
+}
+
+.sidebar nav[role="doc-toc"] ul > li > a.active, .sidebar nav[role="doc-toc"] ul > li > ul > li > a.active {
+  font-weight: bold;
+}
+
+/* Blockquote ----- */
+
+.blockquote {
+  color: $brand-gray;
+}
+
+/* Callouts ----- */
+
+.callout:not(.callout-titled) .callout-body > :last-child,
+.callout:not(.callout-titled) .callout-body > div > :last-child {
+  margin-bottom: 0.5rem;
+}
+
+/* Figures ----- */
+
+figure.figure {
+  text-align: center;
+}
+
+/* Captions ----- */
+
+.panel-caption, .figure-caption, .subfigure-caption, .table-caption,
+figcaption, caption {
+  color: $brand-gray;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.quarto-float-caption-top {
+  font-size: 0.9rem;
+  color: $brand-black;
+  margin-bottom: 2em;
+}
+
+.legend {
+  font-size: 0.9rem;
+  color: $brand-black;
+}
+
+/* Colors ----- */
+
+.brand-blue {
+  color: $brand-blue;
+}
+
+.brand-gray {
+  color: $brand-gray;
+}
+
+.brand-black {
+  color: $brand-black;
+}
