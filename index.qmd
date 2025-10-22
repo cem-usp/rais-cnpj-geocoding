@@ -165,7 +165,7 @@ raw_data_file <-
 ```{r}
 #| echo: false
 
-raw_data_file <- here(raw_data_dir, "rais_alim_2022.parquet")
+raw_data_file <- here(raw_data_dir, "rais_alim_2022.parquet.lockr")
 ```
 
 ### Unlock the File
