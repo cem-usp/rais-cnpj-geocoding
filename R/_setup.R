@@ -48,14 +48,20 @@ opts_chunk$set(
 options(BRANDR_BRAND_YML = here("_brand.yml"))
 
 brandr_options <- list(
-  "BRANDR_COLOR_SEQUENTIAL" =
-    get_brand_color(c("primary", "secondary")),
+  "BRANDR_COLOR_SEQUENTIAL" = get_brand_color(
+    c("blue", "white")
+  ),
   "BRANDR_COLOR_DIVERGING" =
-    get_brand_color(c("primary", "secondary", "tertiary")),
-  "BRANDR_COLOR_QUALITATIVE" = c(
-    get_brand_color("primary"),
-    get_brand_color("secondary"),
-    get_brand_color("tertiary")
+    get_brand_color(c("comp-blue-3", "white", "comp-blue-6")),
+  "BRANDR_COLOR_QUALITATIVE" = get_brand_color(
+    c(
+      "square-blue-green",
+      "square-blue-orange",
+      "square-blue-blue",
+      "square-blue-purple",
+      "gray",
+      "black"
+    )
   )
 )
 
@@ -121,9 +127,9 @@ theme_set(
 # <https://github.com/paleolimbot/rbbt/issues/47>). If not, install `rbbt`
 # from @wmoldham fork `remotes::install_github("wmoldham/rbbt", force = TRUE)`.
 
-bbt_write_quarto_bib(
-  bib_file = here("references.bib"),
-  dir = c("."),
-  pattern = "\\.qmd$",
-  wd = here()
-)
+# bbt_write_quarto_bib(
+#   bib_file = here("references.bib"),
+#   dir = c("."),
+#   pattern = "\\.qmd$",
+#   wd = here()
+# )

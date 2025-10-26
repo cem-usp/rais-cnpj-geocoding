@@ -8,7 +8,7 @@ source(here("R", "_setup.R"))
 ```
 
 <!-- badges: start -->
-[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
+[![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![License: GPLv3](https://img.shields.io/badge/license-GPLv3-bd0000.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/license-CC_BY--NC--SA_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 <!-- badges: end -->
@@ -19,7 +19,7 @@ This pipeline is a **Work In Progress** (WIP) and is under active development. I
 
 ## Overview
 
-This report provides a fully reproducible pipeline for processing and [geocoding](https://en.wikipedia.org/wiki/Address_geocoding) [CNPJ](https://en.wikipedia.org/wiki/CNPJ)s from the Annual Social Information Report ([RAIS](https://www.rais.gov.br/)) of the Brazilian Ministry of Labor and Employment ([MTE](https://www.gov.br/trabalho-e-emprego)).
+This report provides a reproducible pipeline for processing and [geocoding](https://en.wikipedia.org/wiki/Address_geocoding) [CNPJ](https://en.wikipedia.org/wiki/CNPJ)s from the Annual Social Information Report ([RAIS](https://www.rais.gov.br/)) of the Brazilian Ministry of Labor and Employment ([MTE](https://www.gov.br/trabalho-e-emprego)). The pipeline was developed by **Gabriel Caldeira** and **Clara Penz**, with further adaptations by [**Daniel Vartanian**](https://github.com/danielvartan).
 
 ## Problem
 
@@ -33,7 +33,7 @@ The [RAIS](https://www.rais.gov.br/) database includes the [CNPJ](https://en.wik
 [![](https://img.shields.io/badge/OSF%20ID-p5ufj-1284C5.svg)](https://osf.io/p5ufj/)
 :::
 
-The processed data are available in both [`rds`](https://rdrr.io/r/base/readRDS.html) and [`csv`](https://en.wikipedia.org/wiki/Comma-separated_values) formats through a dedicated repository on the Open Science Framework ([OSF](https://osf.io/)). A metadata file is included alongside the validated datasets.
+The processed data are available in both [`rds`](https://rdrr.io/r/base/readRDS.html) and [`parquet`](https://en.wikipedia.org/wiki/Apache_Parquet) formats through a dedicated repository on the Open Science Framework ([OSF](https://osf.io/)). A metadata file is included alongside the validated datasets.
 
 Because the raw data are not publicly available, only authorized personnel can access the processed files. They are protected with [RSA](https://en.wikipedia.org/wiki/RSA_cryptosystem) 4096-bit encryption ([OpenSSL](https://www.openssl.org/)) and a 32-byte password to ensure data security.
 
@@ -46,13 +46,16 @@ If you already have access to the OSF repository and the project keys, click [he
 The data used in this report come from the following sources:
 
 - Brazilian  Ministry of Labor and Employment ([MTE](https://www.gov.br/trabalho-e-emprego)): Data on food retail establishments from the Annual Social Information Report ([RAIS](https://www.rais.gov.br/)) provided by request (**private data**), used for company identification.
-- Brazilian Institute of Geography and Statistics ([IBGE](https://www.ibge.gov.br/)): Open spatial datasets of Brazilian addresses from the National Address Register for Statistical Purposes ([CNEFE](https://www.ibge.gov.br/estatisticas/sociais/populacao/38734-cadastro-nacional-de-enderecos-para-fins-estatisticos.html)), used for geocoding via the [`geocodebr`](https://ipeagit.github.io/geocodebr/) R package.
+- Brazilian Federal Revenue Service ([RFB](https://www.gov.br/receitafederal/)): Data on legal entities from the National Register of Legal Entities ([CNPJ](https://www.gov.br/receitafederal/pt-br/assuntos/cadastro/cadastro-nacional-da-pessoa-juridica)).
+- Brazilian Institute of Geography and Statistics ([IBGE](https://www.ibge.gov.br/)):
+  - Municipality data via the [`geobr`](https://ipeagit.github.io/geobr/) R package.
+  - Open spatial datasets of Brazilian addresses from the National Address Register for Statistical Purposes ([CNEFE](https://www.ibge.gov.br/estatisticas/sociais/populacao/38734-cadastro-nacional-de-enderecos-para-fins-estatisticos.html)), used for geocoding via the [`geocodebr`](https://ipeagit.github.io/geocodebr/) R package.
 
 ### Data Munging
 
 The data munging follow the data science workflow outlined by @wickham2023e, as illustrated in [@fig-wickham-at-al-2023-figure-1]. All processes were made using the [Quarto](https://quarto.org/) publishing system [@allaire], the [R programming language](https://www.r-project.org/) [@rcoreteama] and several R packages.
 
-Spatial data processing was performed using the [`terra`](https://rspatial.github.io/terra/reference/terra-package.html) R package [@hijmans] and the [rspatial](https://rspatial.org/) framework. For data manipulation and workflow, priority was given to packages from the [tidyverse](https://www.tidyverse.org/) and [rOpenSci](https://ropensci.org/) ecosystems, as well as other packages adhering to the tidy tools manifesto [@wickham2023c].
+For data manipulation and workflow, priority was given to packages from the [tidyverse](https://www.tidyverse.org/), [rOpenSci](https://ropensci.org/) and [r-spatial](https://r-spatial.org/) ecosystems, as well as other packages adhering to the tidy tools manifesto [@wickham2023c].
 
 ::: {#fig-wickham-at-al-2023-figure-1}
 ![](images/wickham-at-al-2023-figure-1.png){width=75%}
@@ -75,7 +78,7 @@ The pipeline is fully reproducible and can be run again at any time. To ensure c
 ### Load Packages
 
 ```{r}
-#| code-fold: false
+#| label: Set the Environment
 #| output: false
 
 library(askpass)
@@ -83,13 +86,28 @@ library(brandr)
 library(beepr)
 library(dplyr)
 library(fs)
+library(geobr)
+library(geocodebr)
 library(ggplot2)
+library(ggspatial)
+library(googlesheets4)
 library(here)
 library(htmltools)
 library(lockr) # github.com/danielvartan/lockr
 library(magrittr)
 library(nanoparquet)
+library(orbis) # github.com/danielvartan/orbis
 library(osfr)
+library(purrr)
+library(readr)
+library(rvest)
+library(rutils) # github.com/danielvartan/rutils
+library(sf)
+library(stringi)
+library(stringr)
+library(tidyr)
+library(vroom)
+library(zip)
 ```
 
 ### Set Keys
@@ -99,6 +117,8 @@ osf_pat <- Sys.getenv("OSF_PAT") # askpass()
 ```
 
 ```{r}
+#| output: false
+
 osf_auth(osf_pat)
 ```
 
@@ -114,21 +134,64 @@ private_key <- here("_ssh", "id_rsa")
 password <- Sys.getenv("ACESSOSAN_PASSWORD") # askpass()
 ```
 
+### Set Google Sheets API
+
+```{r}
+#| output: false
+
+gs4_auth(cache = ".secrets")
+```
+
+### Set Input and Output Paths
+
+```{r}
+dir_inputs <- here("1-inputs")
+dir_parcial <- here("2-parcial")
+```
+
+```{r}
+for (i in c(dir_inputs, dir_parcial)) {
+  if (!dir_exists(i)) {
+    dir_create(i, recurse = TRUE)
+  }
+}
+```
+
+### Set Municipality Data
+
+```{r}
+municipios <- c(
+  3550308, # São Paulo
+  2507507, # João Pessoa
+  3106200, # Belo Horizonte
+  4314902, # Porto Alegre
+  1721000, # Palmas
+  5300108, # Brasília
+  5208707  # Goiânia
+)
+```
+
 ### Set Initial Variables
 
 ```{r}
 set.seed(2025)
 ```
 
-## Download the Raw Data
+## Download RAIS Raw Data
 
-### Set Parameters
+<!-- ### Set Parameters -->
 
 ```{r}
+#| eval: false
+#| echo: false
+
 raw_data_dir <- here("data-raw")
 ```
 
 ```{r}
+#| eval: false
+#| echo: false
+
 if (!dir_exists(raw_data_dir)) {
   dir_create(raw_data_dir, recurse = TRUE)
 }
@@ -137,10 +200,14 @@ if (!dir_exists(raw_data_dir)) {
 ### Download File
 
 ```{r}
+#| label: Download RAIS Raw Data
+
 osf_raw_data_id <- "tdswp"
 ```
 
 ```{r}
+#| eval: false
+
 osf_raw_data_files <-
   osf_raw_data_id |>
   osf_retrieve_node() |>
@@ -156,26 +223,20 @@ osf_raw_data_files
 ```{r}
 #| eval: false
 
-raw_data_file <-
+rais_raw_file <-
   osf_raw_data_files |>
-  osf_download(path = raw_data_dir, conflicts = "overwrite") |>
+  osf_download(path = dir_inputs, conflicts = "overwrite") |>
   extract2("local_path")
 ```
 
-```{r}
-#| echo: false
-
-raw_data_file <- here(raw_data_dir, "rais_alim_2022.parquet.lockr")
-```
-
-### Unlock the File
+### Unlock File
 
 ```{r}
 #| eval: false
 #| output: false
 
-raw_data_file <-
-  raw_data_file |>
+rais_raw_file <-
+  rais_raw_file |>
   unlock_file(
     private_key = private_key,
     suffix = ".lockr",
@@ -184,33 +245,732 @@ raw_data_file <-
   )
 ```
 
+```{r}
+#| echo: false
+
+rais_raw_file <- here(dir_inputs, "rais_alim_2022.parquet")
+```
+
+## Download CNAE Classification Table
+
+```{r}
+#| label: Download CNAE Classification Table
+
+# classification_data
+cnae <-
+  read_sheet(
+    ss = "1ipCw2FM3aUOdRd4w55J5SUEgXDCogxWZF-NZi0A-o_4",
+    sheet = "Dataset"
+  ) |>
+    mutate(
+      uf = sigla_uf,
+      cnae = No.CNAE,
+      g1_g2_uf = g1g2_uf
+      # g0_uf = if_else(
+      #   g1_g2_uf == TRUE & g3_uf == FALSE & g4_uf == FALSE,
+      #   TRUE,
+      #   FALSE
+      # )
+    )
+
+cnae |> glimpse()
+```
+
+## Download Municipalities Data
+
+```{r}
+#| label: Download Municipalities Data
+
+# municipalities_data
+uf <- brazil_municipality(year = 2022)
+
+uf |> glimpse()
+```
+
+```{r}
+uf <-
+  uf |>
+  transmute(
+    uf = federal_unit,
+    co_municipio6 = str_sub(municipality_code, 1, 6),
+    no_municipio = municipality
+  )
+
+uf
+```
+
+## Download RFB Data
+
+### Set Directories
+
+```{r}
+#| label: Download RFB Data
+
+cnpj_dir <- here(dir_inputs, "CNPJ_2024")
+estabelecimentos_dir <- here(dir_inputs, "CNPJ_2024", "1-ESTABELECIMENTOS")
+empresas_dir <- here(dir_inputs, "CNPJ_2024", "2-EMPRESAS")
+socios_dir <- here(dir_inputs, "CNPJ_2024", "3-SOCIOS")
+demais_arquivos_dir <- here(dir_inputs, "CNPJ_2024", "4-DEMAIS_ARQUIVOS")
+```
+
+```{r}
+subdiretorios <- c(
+  "1-ESTABELECIMENTOS",
+  "2-EMPRESAS",
+  "3-SOCIOS",
+  "4-DEMAIS_ARQUIVOS"
+)
+```
+
+```{r}
+for (subdir in subdiretorios) {
+  caminho <- file.path(cnpj_dir, subdir)
+
+  if (!file.exists(caminho))  dir.create(caminho, recursive = TRUE)
+}
+```
+
+### Download Data
+
+```{r}
+#| eval: false
+
+root <- file.path( # Don´t change the function!
+    "https://arquivos.receitafederal.gov.br",
+    "dados",
+    "cnpj",
+    "dados_abertos_cnpj"
+  )
+```
+
+```{r}
+#| eval: false
+
+path <- root |> file.path(paste0("2025-", str_pad(1, 2, pad = 0)))
+
+urls <-
+  path |>
+  read_html() |>
+  html_elements("a") |>
+  html_attr("href") |>
+  str_subset("\\.zip$") %>%
+  file.path(path, .)
+```
+
+```{r}
+#| eval: false
+
+urls |>
+  map_dbl(.f = get_file_size, .progress = TRUE) |>
+  sum() |>
+  as_fs_bytes()
+```
+
+```{r}
+#| eval: false
+
+urls |> download_file(dir = cnpj_dir)
+```
+
+### Unzip Data
+
+```{r}
+#| eval: false
+
+zip_files <- cnpj_dir |> dir_ls(type = "file", regexp = "\\.zip$")
+```
+
+```{r}
+#| eval: false
+#| output: false
+
+zip_files |> map(\(x) unzip(x, exdir = cnpj_dir), .progress = TRUE)
+```
+
+```{r}
+#| eval: false
+
+zip_files |> file_delete()
+```
+
+### Move Data
+
+```{r}
+#| eval: false
+
+cnpj_dir |>
+  dir_ls(type = "file", regexp = "\\.ESTABELE$") |>
+  file_move(estabelecimentos_dir)
+```
+
+```{r}
+#| eval: false
+
+cnpj_dir |>
+  dir_ls(type = "file", regexp = "\\.EMPRECSV$") |>
+  file_move(empresas_dir)
+```
+
+```{r}
+#| eval: false
+
+cnpj_dir |>
+  dir_ls(type = "file", regexp = "\\.SOCIOCSV$") |>
+  file_move(socios_dir)
+```
+
+```{r}
+#| eval: false
+
+cnpj_dir |>
+  dir_ls(type = "file") |>
+  file_move(demais_arquivos_dir)
+```
+
+```{r}
+#| eval: false
+#| echo: false
+
 ## Read the Data
-
-```{r}
-data <- raw_data_file |> read_parquet()
-```
-
-```{r}
-data |> glimpse()
-```
-
-## Filter the Data
-
-## Tidy the Data
-
 ## Transform the Data
-
+## Filter the Data
 ## Validate the Data
-
 ## Arrange the Data
-
 ## Geocode the Data
-
 ## Data Dictionary
-
 ## Save the Valid Data
+## Visualize the Data
+```
+
+## 02.01-rais_processar_classificar.R
+
+> Trata os dados da RAIS e classifica os estabelecimentos como saudáveis.
+>
+> Nota: foi disponibilizada ao grupo  de pesquisa a base completa da RAIS para o ano de 2022. Não disponibilizaremos a base por motivos legais de permissão de uso.
+
+### Listar Municipios
+
+```{r}
+#| label: 02.01-rais_processar_classificar.R
+
+municipios <-
+  tibble(co_municipio = as.character(municipios)) |>
+  mutate(co_municipio6 = str_sub(co_municipio, 1, 6))
+
+municipios
+```
+
+### Processar Arquivo da RAIS
+
+```{r}
+rais <- rais_raw_file |> read_parquet()
+
+rais |> glimpse()
+```
+
+> Filtrar estabelecimentos que não estejam ativos.
+
+```{r}
+rais <-
+  rais |>
+  filter(in_atividade_ano == 9) |>
+  filter(
+    in_rais_negativa == 0 | (in_rais_negativa == 1 & qt_vinculos_ativos > 0)
+  )
+```
+
+> Traduzir porte do estabelecimento.
+
+```{r}
+rais <-
+  rais |>
+  mutate(
+    in_tamanho_estab = as.numeric(in_tamanho_estab),
+    tamanho_estab = case_when(
+      in_tamanho_estab <= 3 ~ "Até 9",
+      in_tamanho_estab %in% c(4, 5) ~ "10 a 49",
+      in_tamanho_estab >= 6 ~ "50 ou mais"
+    ),
+    tamanho_estab = factor(
+      tamanho_estab,
+      levels = c("Até 9", "10 a 49", "50 ou mais")
+    )
+  )
+```
+
+> Padronizar códigos de município, CNAE e CNPJ.
+
+```{r}
+rais <-
+  rais |>
+  mutate(
+    cnae = sprintf("%07d", as.integer(co_cnae20_subclasse)),
+    cnpj = str_pad(as.character(nu_cnpj_cei), 14, pad = "0"),
+    co_municipio6 = as.character(co_municipio)
+  ) |>
+   select(cnae, cnpj, co_municipio6, qt_vinculos_ativos, tamanho_estab)
+```
+
+> Juntar as tabelas de UF e RAIS.
+
+```{r}
+rais <- rais |> left_join(uf, by = "co_municipio6")
+```
+
+> Loop com filtragem por município.
+
+```{r}
+for (codigo in municipios$co_municipio) {
+  # Pegar o `code_6` correspondente.
+  codigo6 <-
+    municipios |>
+    filter(co_municipio == codigo) |>
+    pull(co_municipio6)
+
+  # Criar diretório.
+  dir_saida <- file.path(dir_parcial, codigo, "rais")
+  dir.create(dir_saida, recursive = TRUE, showWarnings = FALSE)
+
+  # Filtrar RAIS so do municipio.
+  rais_codigo <- rais |> filter(co_municipio6 == codigo6)
+
+  # Filtrar por UF e por CNAE.
+  rais_codigo <- rais_codigo |> semi_join(cnae, by = c("cnae", "uf"))
+
+  # Processar apenas saudáveis.
+
+  rais_codigo |>
+    semi_join(filter(cnae, g0_uf == 1), by = c("cnae", "uf")) |>
+    write_parquet(file.path(dir_saida, "rais_g0.parquet"))
+
+  # 1) Processar saudáveis.
+  rais_codigo |>
+    semi_join(filter(cnae, g1_g2_uf == 1), by = c("cnae", "uf")) |>
+    write_parquet(file.path(dir_saida, "rais_g1_g2.parquet"))
+
+  # 2) Processar g3.
+  rais_codigo |>
+    semi_join(filter(cnae, g3_uf == 1), by = c("cnae", "uf")) |>
+    write_parquet(file.path(dir_saida, "rais_g3.parquet"))
+
+  # 3) Processar g4.
+  rais_g4 <-
+    rais_codigo |>
+    semi_join(filter(cnae, g4_uf == 1), by = c("cnae", "uf")) |>
+    write_parquet(file.path(dir_saida, "rais_g4.parquet"))
+}
+```
+
+## 02.02-rais_processar_enderecos_cnpj.R
+
+### Carregar CNPJs de Referência de Todos os Tipos de RAIS
+
+> Listar municípios.
+
+```{r}
+#| label: 02.02-rais_processar_enderecos_cnpj.R
+
+municipios <- c(
+  3550308, # São Paulo
+  2507507, # João Pessoa
+  3106200, # Belo Horizonte
+  4314902, # Porto Alegre
+  1721000, # Palmas
+  5300108, # Brasília
+  5208707  # Goiânia
+)
+```
+
+```{r}
+lista_cnpjs <- list()
+
+for (mun in municipios) {
+  rais_dir <- file.path(dir_parcial, mun, "rais")
+
+  arquivos_rais <-
+    rais_dir |>
+    list.files(
+      pattern = "^rais_.*\\.parquet$",
+      full.names = TRUE
+    )
+
+  for (arq in arquivos_rais) {
+    tipo <- gsub("rais_|\\.parquet", "", basename(arq))  # g0, g1_g2, g3, g4
+
+    rais_cnpj <-
+      read_parquet(arq) |>
+      select(cnpj) |>
+      mutate(
+        cnpj = as.character(cnpj),
+        municipio = mun
+      ) |>
+      distinct()
+
+    lista_cnpjs[[tipo]] <- bind_rows(lista_cnpjs[[tipo]], rais_cnpj)
+  }
+}
+```
+
+### Carregar Referência de Municípios
+
+```{r}
+municipios_ref <-
+  file.path(demais_arquivos_dir, "F.K03200$Z.D50111.MUNICCSV") |>
+  vroom(
+    delim = ";",
+    # encoding = "Latin-1",
+    col_names = c("MUNICIPIO_TOM", "no_municipio"),
+    col_types = cols(.default = "c"),
+    show_col_types = FALSE
+  ) |>
+  mutate(MUNICIPIO_TOM = as.character(MUNICIPIO_TOM))
+```
+
+### Processar Estabelecimentos por Tipo de RAIS
+
+```{r}
+saida_dir <- file.path(dir_parcial, "cnpj_enderecos_brasil")
+
+dir.create(saida_dir, recursive = TRUE, showWarnings = FALSE)
+```
+
+```{r}
+arquivos_estab <- list.files(estabelecimentos_dir, full.names = TRUE)
+
+total_arquivos <- length(arquivos_estab)
+```
+
+```{r}
+#| eval: false
+#| warning: false
+
+for (tipo_rais in names(lista_cnpjs)) {
+  print(paste("Processando RAIS:", tipo_rais))
+  cnpjs_rais <- lista_cnpjs[[tipo_rais]]
+  lista_estab <- list()
+
+  for (i in seq_along(arquivos_estab)) {
+    caminho_arquivo <- arquivos_estab[i]
+    print(paste("Arquivo 'estabelecimentos'", i, "de", total_arquivos))
+
+    tryCatch({
+      estab <-
+        caminho_arquivo |>
+        vroom(
+          delim = ";",
+          # encoding = "Latin-1",
+          col_names = c(
+            "CNPJ_BASICO", "CNPJ_ORDEM", "CNPJ_DV",
+            "IDENTIFICADOR_MATRIZ_FILIAL", "NOME_FANTASIA",
+            "SITUACAO_CADASTRAL", "DATA_SITUACAO_CADASTRAL",
+            "MOTIVO_SITUACAO_CADASTRAL", "NOME_CIDADE_EXTERIOR", "PAIS",
+            "DATA_INICIO_ATIVIDADE", "CNAE_FISCAL_PRINCIPAL",
+            "CNAE_FISCAL_SECUNDARIO", "tipo_logradouro", "logradouro",
+            "numero", "complemento", "bairro", "cep", "uf", "MUNICIPIO_TOM",
+            "DDD_1", "TELEFONE_1", "DDD_2", "TELEFONE_2", "DDD_FAX", "FAX",
+            "CORREIO_ELETRONICO", "SITUACAO_ESPECIAL", "DATA_SITUACAO_ESPECIAL"
+          ),
+          col_types = cols(.default = "c"),
+          col_select = c(
+            "CNPJ_BASICO", "CNPJ_ORDEM", "CNPJ_DV", "MUNICIPIO_TOM",
+            "uf", "tipo_logradouro", "logradouro", "numero", "complemento",
+            "bairro", "cep"
+          ),
+          show_col_types = FALSE
+        )
+
+      # Ajustar CNPJs e CEP.
+      estab <-
+        estab |>
+        mutate(
+          CNPJ_BASICO = str_pad(CNPJ_BASICO, 8, pad = "0"),
+          CNPJ_ORDEM = str_pad(CNPJ_ORDEM, 4, pad = "0"),
+          CNPJ_DV = str_pad(CNPJ_DV, 2, pad = "0"),
+          cnpj = paste0(CNPJ_BASICO, CNPJ_ORDEM, CNPJ_DV),
+          cep =
+            cep |>
+            as.character() |>
+            str_pad(width = 8, side = "left", pad = "0"),
+          MUNICIPIO_TOM = as.character(MUNICIPIO_TOM)
+        ) |>
+        semi_join(cnpjs_rais, by = "cnpj") |>   # Pegar só CNPJs desta RAIS.
+        left_join(municipios_ref, by = "MUNICIPIO_TOM") |>
+        select(cnpj, uf, no_municipio, tipo_logradouro, logradouro, numero, complemento, bairro, cep)
+
+      lista_estab[[length(lista_estab) + 1]] <- estab
+    }, error = function(e){
+      message("Falha ao processar: ", caminho_arquivo, " - ", e$message)
+    })
+  }
+
+  # Unir e salvar parquet por RAIS.
+  estab_total <- bind_rows(lista_estab)
+
+  estab_total |>
+    write_parquet(
+      file.path(saida_dir, paste0("cnpj_brasil_", tipo_rais, ".parquet"))
+    )
+
+  print(paste("Arquivo salvo:", paste0("cnpj_brasil_", tipo_rais, ".parquet")))
+}
+```
+
+## 02.03-rais_geocodificar_estabelecimentos.R
+
+> Listar municípios.
+
+```{r}
+#| label: 02.03-rais_geocodificar_estabelecimentos.R
+
+municipios <- c(
+  3550308, # São Paulo
+  2507507, # João Pessoa
+  3106200, # Belo Horizonte
+  4314902, # Porto Alegre
+  1721000, # Palmas
+  5300108, # Brasília
+  5208707  # Goiânia
+)
+```
+
+> Definir tipos de estabelecimento.
+
+```{r}
+class <- c("g0", "g1_g2", "g3", "g4")
+```
+
+### Loop Sobre Arquivos de CNPJs
+
+```{r}
+#| eval: false
+
+for (class_atual in class) {
+  # Extrair tipo do nome do arquivo.
+  message(">> Tipo identificado: ", class_atual)
+
+  # Ler arquivo de endereços e ajustar valores.
+  cnpj_enderecos <-
+    file.path(
+      dir_parcial,
+      "cnpj_enderecos_brasil",
+      paste0("cnpj_brasil_", class_atual, ".parquet")
+    ) |>
+    read_parquet()
+
+  # Ajustar valores.
+  cnpj_enderecos <-
+    cnpj_enderecos |>
+      mutate(
+        cep =
+          cep |>
+          trimws() |>
+          as.numeric() |>
+          str_pad(pad = 0, width = 8),
+        endereco = paste(tipo_logradouro, logradouro),
+        numero =
+          numero |>
+          iconv(from = "latin1", to = "ASCII//TRANSLIT") |>
+          str_remove_all("\\D") |>
+          str_trim() |>
+          as.numeric() |>
+          as.character() |>
+          suppressWarnings(),
+        municipio_utf8 =
+          no_municipio |>
+          stri_trans_general("Latin-ASCII") |>
+          toupper()
+      ) |>
+      select(cnpj, uf, municipio_utf8, endereco, numero, cep, bairro) |>
+      mutate(
+        across(
+          .cols = where(is.character),
+          .fns = function(col) {
+              Encoding(col) <- "UTF-8"
+
+              iconv(col, from = "", to = "UTF-8", sub = "")
+          }
+        )
+      )
+
+  # Definir campos de geocodificação.
+  campos <- definir_campos(
+    estado = "uf",
+    municipio = "municipio_utf8",
+    logradouro = "endereco",
+    numero = "numero",
+    cep = "cep",
+    localidade = "bairro"
+  )
+
+  # Geocodificar endereços.
+  geocodificado <- geocode(
+    enderecos = cnpj_enderecos,
+    campos_endereco = campos,
+    resultado_sf = FALSE,
+    verboso = TRUE,
+    cache = TRUE,
+    n_cores = 1,
+    resolver_empates = TRUE
+  )
+
+  # Selecionar variáveis finais.
+  geocodificado <-
+    geocodificado |>
+    select(cnpj, lat, lon) |>
+    drop_na(all_of(c("lat", "lon")))
+
+  # Converter para sf.
+  geocodificado_sf <- st_as_sf(
+    geocodificado,
+    coords = c("lon", "lat"),
+    crs = 4326
+  )
+
+  # Loop por municipio --------------------------------------------------
+
+  for (mun in municipios) {
+    message("  -> Municipio: ", mun)
+
+    # Geometria do municipio.
+    geom_mun <-
+      mun |>
+      read_municipality(year = 2022) |>
+      st_transform(crs = 4326)
+
+    # Filtrar endereços dentro do municipio.
+    geocodificado_mun <-
+      geocodificado_sf |>
+      st_join(geom_mun, join = st_within, left = FALSE)
+
+    # Converter de volta para data frame.
+    geocodificado_mun <-
+      geocodificado_mun %>% # Don´t change the pipe!
+      mutate(
+        lon = st_coordinates(.)[,1],
+        lat = st_coordinates(.)[,2]
+      ) |>
+      st_drop_geometry() |>
+      select(cnpj, lat, lon)
+
+    # Caminho do arquivo RAIS referente ao tipo atual.
+    rais_path <- file.path(
+      dir_parcial,
+      mun,
+      "rais",
+      paste0("rais_", class_atual, ".parquet")
+    )
+
+    if (!file.exists(rais_path)) next
+
+    # Ler RAIS.
+    rais <- read_parquet(rais_path)
+
+    # Join com coordenadas.
+    rais_geo <-
+      rais |>
+      left_join(geocodificado_mun, by = "cnpj")
+
+    # Salvar parquet (com nome do tipo)
+    caminho_saida <- file.path(
+      dir_parcial,
+      mun,
+      "rais",
+      paste0(class_atual, "_geocod.parquet")
+    )
+
+    rais_geo |> write_parquet(caminho_saida)
+  }
+}
+```
+
+```{r}
+#| echo: false
+
+# beep(3)
+```
 
 ## Visualize the Data
+
+### Set Variables
+
+```{r}
+#| label: Visualize the Data
+
+municipality <- 3550308 # São Paulo
+```
+
+```{r}
+classes <- c("g0", "g1_g2", "g3", "g4")
+```
+
+```{r}
+geocoded_data_dir <- file.path(
+  dir_parcial,
+  municipality,
+  "rais"
+)
+```
+
+### Prepare Data
+
+```{r}
+plot_data <-
+  classes |>
+  rev() |>
+  map(
+    function(x) {
+      geocoded_data_dir |>
+      path(paste0(x, "_geocod.parquet")) |>
+      read_parquet() |>
+      transmute(
+        class =
+          x |>
+          str_to_upper() |>
+          str_replace("_", "-"),
+        lat,
+        lon
+      )
+    },
+    .progress = TRUE
+  ) |>
+  list_rbind()
+
+```
+
+### Set Shape
+
+```{r}
+#| output: false
+
+shape <- municipality |> read_municipality(year = 2022)
+```
+
+### Plot Data
+
+```{r}
+#| fig-width: 10
+#| fig-height: 4
+
+ggplot() +
+  geom_sf(
+    data = shape,
+    fill = "gray90",
+    color = "black"
+  ) +
+  geom_point(
+    data = plot_data,
+    mapping = aes(x = lon, y = lat, color = class),
+    size = 0.01
+    # color = get_brand_color("blue")
+  ) +
+  facet_wrap(~ class, ncol = 4) +
+  coord_sf(crs = 4326) +
+  scale_x_continuous(labels = NULL, breaks = NULL) +
+  scale_y_continuous(labels = NULL, breaks = NULL) +
+  scale_colour_brand_d() +
+  theme(legend.position = "none") +
+  labs(x = NULL, y = NULL, color = NULL)
+```
 
 ## Citation
 
@@ -220,14 +980,14 @@ When using this data, you must also cite the original data sources.
 
 To cite this work, please use the following format:
 
-Vartanian, D., Fernandes, C. N., & Giannotti, M. A. (2025). *A reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE)* \[Computer software\]. Center for Metropolitan Studies of the University of São Paulo. <https://cem-usp.github.io/rais-cnpj-geocoding>
+Caldeira, G., Penz, C., Vartanian, D., Fernandes, C. N., & Giannotti, M. A. (2025). *A reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE)* \[Computer software\]. Center for Metropolitan Studies of the University of São Paulo. <https://cem-usp.github.io/rais-cnpj-geocoding>
 
 A BibTeX entry for LaTeX users is
 
 ```latex
-@software{vartanian2025,
+@software{caldeira2025,
   title = {A reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE)},
-  author = {{Daniel Vartanian} and {Camila Nastari Fernandes} and {Mariana Abrantes Giannotti}},
+  author = {{Gabriel Caldeira} and {Clara Penz} and {Daniel Vartanian} and {Camila Nastari Fernandes} and {Mariana Abrantes Giannotti}},
   year = {2025},
   address = {São Paulo},
   institution = {Center for Metropolitan Studies of the University of São Paulo},
@@ -250,7 +1010,7 @@ The original data sources may have their own license terms and conditions.
 The code in this report is licensed under the [GNU General Public License Version 3](https://www.gnu.org/licenses/gpl-3.0), while the report is available under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/).
 
 ``` text
-Copyright (C) 2025 Daniel Vartanian
+Copyright (C) 2025 Center for Metropolitan Studies
 
 The code in this report is free software: you can redistribute it and/or
 modify it under the terms of the GNU General Public License as published by the

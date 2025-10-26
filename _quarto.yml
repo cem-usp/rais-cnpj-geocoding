@@ -14,10 +14,10 @@ title: >
   A Reproducible Pipeline for Processing and Geocoding CNPJs from the Annual
   Social Information Report (RAIS) of the Brazilian Ministry of Labor and
   Employment (MTE)
-author: "Daniel Vartanian, Camila Nastari Fernandes, & Mariana Abrantes Giannotti"
+author: "Gabriel Caldeira, Clara Penz, Daniel Vartanian, Camila Nastari Fernandes & Mariana Abrantes Giannotti"
 keyword: >
-  Pipelines, rstats, Data Munging, Data Science, Open Data, Open Science,
-  Spatial Data, Geocoding, CNPJ, Annual Social Information Report, RAIS,
+  Pipelines, Data Munging, Data Science, Open Data, Open Science, Spatial Data,
+  rstats, Geocoding, CNPJ, Annual Social Information Report, RAIS,
   Brazilian Ministry of Labor and Employment, MTE, Brazil
 date: today
 date-format: long

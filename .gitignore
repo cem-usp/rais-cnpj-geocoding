@@ -3,14 +3,15 @@
 .Renviron
 .Rhistory
 .Ruserdata
+.secrets
 *.knit.md
 *.utf8.md
 **/*.quarto_ipynb
-/_archive/
 /_freeze/
 /.quarto/
 /.Rproj.user/
 /*_cache/
+/1-inputs/
+/2-parcial/
 /cache/
-/data-raw/
 /data/
