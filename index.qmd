@@ -21,6 +21,8 @@ This pipeline is a **Work In Progress** (WIP) and is under active development. I
 
 This report provides a reproducible pipeline for processing and [geocoding](https://en.wikipedia.org/wiki/Address_geocoding) [CNPJ](https://en.wikipedia.org/wiki/CNPJ)s from the Annual Social Information Report ([RAIS](https://www.rais.gov.br/)) of the Brazilian Ministry of Labor and Employment ([MTE](https://www.gov.br/trabalho-e-emprego)). The pipeline was developed by **Gabriel Caldeira** and **Clara Penz**, with further adaptations by [**Daniel Vartanian**](https://github.com/danielvartan).
 
+For instructions on how to run the pipeline, see the repository [README](https://github.com/cem-usp/rais-cnpj-geocoding/blob/main/README.md).
+
 ## Problem
 
 The [AcessoSAN](https://doi.org/10.17605/OSF.IO/ZE6WT) project aims to develop methods for measuring and analyzing inequities in access to healthy food in favelas and other urban communities. Achieving this requires a reliable and up-to-date database of food retail establishments.
@@ -37,7 +39,7 @@ The processed data are available in both [`rds`](https://rdrr.io/r/base/readRDS.
 
 Because the raw data are not publicly available, only authorized personnel can access the processed files. They are protected with [RSA](https://en.wikipedia.org/wiki/RSA_cryptosystem) 4096-bit encryption ([OpenSSL](https://www.openssl.org/)) and a 32-byte password to ensure data security.
 
-If you already have access to the OSF repository and the project keys, click [here](https://osf.io/) to access the data. A backup copy of the raw data is also stored on OSF and can be accessed [here](https://osf.io/tdswp/). You can also retrieve these files directly from [R](https://www.r-project.org/) using the [`osfr`](https://docs.ropensci.org/osfr/) package.
+If you already have access to the OSF repository and the project keys, click [here](https://osf.io/p5ufj) to access the data. A backup copy of the raw data is also stored on OSF and can be accessed [here](https://osf.io/tdswp/). You can also retrieve these files directly from [R](https://www.r-project.org/) using the [`osfr`](https://docs.ropensci.org/osfr/) package.
 
 ## Methods
 

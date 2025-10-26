@@ -282,6 +282,7 @@ div.csl-indent {
 </div>
 <section id="overview" class="level2"><h2 class="anchored" data-anchor-id="overview">Overview</h2>
 <p>This report provides a reproducible pipeline for processing and <a href="https://en.wikipedia.org/wiki/Address_geocoding">geocoding</a> <a href="https://en.wikipedia.org/wiki/CNPJ">CNPJ</a>s from the Annual Social Information Report (<a href="https://www.rais.gov.br/">RAIS</a>) of the Brazilian Ministry of Labor and Employment (<a href="https://www.gov.br/trabalho-e-emprego">MTE</a>). The pipeline was developed by <strong>Gabriel Caldeira</strong> and <strong>Clara Penz</strong>, with further adaptations by <a href="https://github.com/danielvartan"><strong>Daniel Vartanian</strong></a>.</p>
+<p>For instructions on how to run the pipeline, see the repository <a href="https://github.com/cem-usp/rais-cnpj-geocoding/blob/main/README.md">README</a>.</p>
 </section><section id="problem" class="level2"><h2 class="anchored" data-anchor-id="problem">Problem</h2>
 <p>The <a href="https://doi.org/10.17605/OSF.IO/ZE6WT">AcessoSAN</a> project aims to develop methods for measuring and analyzing inequities in access to healthy food in favelas and other urban communities. Achieving this requires a reliable and up-to-date database of food retail establishments.</p>
 <p>The <a href="https://www.rais.gov.br/">RAIS</a> database includes the <a href="https://en.wikipedia.org/wiki/CNPJ">CNPJ</a>s of companies operating in Brazil, among them food retail establishments. However, it does not provide <a href="https://en.wikipedia.org/wiki/Address_geocoding">geocoded information</a>, which is required for spatial analyses. This pipeline addresses that limitation by processing and geocoding the <a href="https://en.wikipedia.org/wiki/CNPJ">CNPJ</a>s from the RAIS database.</p>
@@ -291,7 +292,7 @@ div.csl-indent {
 </div>
 <p>The processed data are available in both <a href="https://rdrr.io/r/base/readRDS.html"><code>rds</code></a> and <a href="https://en.wikipedia.org/wiki/Apache_Parquet"><code>parquet</code></a> formats through a dedicated repository on the Open Science Framework (<a href="https://osf.io/">OSF</a>). A metadata file is included alongside the validated datasets.</p>
 <p>Because the raw data are not publicly available, only authorized personnel can access the processed files. They are protected with <a href="https://en.wikipedia.org/wiki/RSA_cryptosystem">RSA</a> 4096-bit encryption (<a href="https://www.openssl.org/">OpenSSL</a>) and a 32-byte password to ensure data security.</p>
-<p>If you already have access to the OSF repository and the project keys, click <a href="https://osf.io/">here</a> to access the data. A backup copy of the raw data is also stored on OSF and can be accessed <a href="https://osf.io/tdswp/">here</a>. You can also retrieve these files directly from <a href="https://www.r-project.org/">R</a> using the <a href="https://docs.ropensci.org/osfr/"><code>osfr</code></a> package.</p>
+<p>If you already have access to the OSF repository and the project keys, click <a href="https://osf.io/p5ufj">here</a> to access the data. A backup copy of the raw data is also stored on OSF and can be accessed <a href="https://osf.io/tdswp/">here</a>. You can also retrieve these files directly from <a href="https://www.r-project.org/">R</a> using the <a href="https://docs.ropensci.org/osfr/"><code>osfr</code></a> package.</p>
 </section><section id="methods" class="level2"><h2 class="anchored" data-anchor-id="methods">Methods</h2>
 <section id="source-of-data" class="level3"><h3 class="anchored" data-anchor-id="source-of-data">Source of Data</h3>
 <p>The data used in this report come from the following sources:</p>
@@ -452,6 +453,7 @@ Figure&nbsp;1: Data science workflow created by Wickham, Çetinkaya-Runde, and G
 <span>      <span class="co">#   FALSE</span></span>
 <span>      <span class="co"># )</span></span>
 <span>    <span class="op">)</span></span>
+<span><span class="co">#&gt; Auto-refreshing stale OAuth token.</span></span>
 <span><span class="co">#&gt; ✔ Reading from "Locais-Nova By CNAE".</span></span>
 <span><span class="co">#&gt; ✔ Range ''Dataset''.</span></span>
 <span></span>

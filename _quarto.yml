@@ -17,8 +17,8 @@ title: >
 author: "Gabriel Caldeira, Clara Penz, Daniel Vartanian, Camila Nastari Fernandes & Mariana Abrantes Giannotti"
 keyword: >
   Pipelines, Data Munging, Data Science, Open Data, Open Science, Spatial Data,
-  rstats, Geocoding, CNPJ, Annual Social Information Report, RAIS,
-  Brazilian Ministry of Labor and Employment, MTE, Brazil
+  rstats, Geocoding, Reproducible Workflows, CNPJ, Annual Social Information
+  Report, RAIS, Brazilian Ministry of Labor and Employment, MTE, Brazil
 date: today
 date-format: long
 

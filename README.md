@@ -83,7 +83,7 @@ To cite this work, please use the following format:
 
 Caldeira, G., Penz, C., Vartanian, D., Fernandes, C. N., & Giannotti, M. A. (2025). *A reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE)* \[Computer software\]. Center for Metropolitan Studies of the University of São Paulo. <https://cem-usp.github.io/rais-cnpj-geocoding>
 
-A BibTeX entry for LaTeX users is
+A BibLaTeX entry for LaTeX users is
 
 ```latex
 @software{caldeira2025,
