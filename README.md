@@ -53,6 +53,27 @@ Additionally, you will need the following keys in the project's [`_ssh`](_ssh) f
 
 These project's keys are provided to authorized personnel only. If you need access, please contact the authors.
 
+## Known Issues
+
+### Arrow Dependencies
+
+```
+Error in `dplyr::compute()`:
+! NotImplemented: Support for codec 'zstd' not built
+```
+
+This error occurs when [`arrow`](https://arrow.apache.org/docs/r/index.html) is missing certain dependencies. To fix it, run:
+
+```r
+Sys.setenv(LIBARROW_MINIMAL = "false")
+```
+
+Then reinstall the `arrow` package:
+
+```r
+install.packages("arrow")
+```
+
 ## Citation
 
 > [!IMPORTANT]
