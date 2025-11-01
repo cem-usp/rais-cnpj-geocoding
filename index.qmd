@@ -47,7 +47,7 @@ If you already have access to the OSF repository and the project keys, click [he
 
 The data used in this report come from the following sources:
 
-- Brazilian  Ministry of Labor and Employment ([MTE](https://www.gov.br/trabalho-e-emprego)): Data on food retail establishments from the Annual Social Information Report ([RAIS](https://www.rais.gov.br/)) provided by request (**private data**), used for company identification.
+- Brazilian  Ministry of Labor and Employment ([MTE](https://www.gov.br/trabalho-e-emprego)): Data on food retail establishments from the Annual Social Information Report ([RAIS](https://www.rais.gov.br/)) provided by request, used for company identification.
 - Brazilian Federal Revenue Service ([RFB](https://www.gov.br/receitafederal/)): Data on legal entities from the National Register of Legal Entities ([CNPJ](https://www.gov.br/receitafederal/pt-br/assuntos/cadastro/cadastro-nacional-da-pessoa-juridica)).
 - Brazilian Institute of Geography and Statistics ([IBGE](https://www.ibge.gov.br/)):
   - Municipality data via the [`geobr`](https://ipeagit.github.io/geobr/) R package.
@@ -262,7 +262,7 @@ rais_raw_file <- here(dir_inputs, "rais_alim_2022.parquet")
 cnae <-
   read_sheet(
     ss = "1ipCw2FM3aUOdRd4w55J5SUEgXDCogxWZF-NZi0A-o_4",
-    sheet = "Dataset"
+    sheet = "Dataset [OLD]"
   ) |>
     mutate(
       uf = sigla_uf,
@@ -889,6 +889,440 @@ for (class_atual in class) {
 #| echo: false
 
 # beep(3)
+```
+
+## 02.04-rais_calcular_matriz_tempo_viagem.R
+
+```{r}
+#| eval: false
+
+# ------------------------- #
+# Calcular matriz de tempo
+# de viagem para municipios
+# ------------------------- #
+
+# Necessarias etapas de instalacao do ambiente:
+# 1. Instalar o Java Development Kit (JDK)
+#    - Baixar do site oficial: https://www.oracle.com/java/technologies/javase-downloads.html
+#    - Escolher a versao adequada (por exemplo, JDK 17)
+#    - Seguir instalacao padrao do sistema operacional
+#    - Configurar a variavel de ambiente JAVA_HOME apontando para a pasta de instalacao do JDK
+#    - Adicionar JAVA_HOME/bin ao PATH do sistema
+
+# 2. Instalar o Osmosis (para processamento de OSM)
+#    - Baixar do site oficial: https://wiki.openstreetmap.org/wiki/Osmosis
+#    - Descompactar em uma pasta local
+#    - Adicionar o diretorio bin do Osmosis ao PATH do sistema (opcional)
+#    - Testar executando 'osmosis --help' no terminal para verificar se funciona
+
+
+# Bibliotecas ----
+library(arrow) # arquivos .parquet
+library(sf) # oreacoes de geometria
+library(tictoc) # tempo de processamento
+library(r5r) # Calculo de tempos de viagem entre pontos
+
+# Definir diretorio de trabalho -----------------------------------------
+setwd("D:/CEM_acessoSAN_ac/")
+
+dir_inputs <- "1-inputs" # Deixar arquivos de input aqui
+dir_parcial <- "2-parcial" # Arquivos com algum processamento
+
+
+# Listar municipios -----------------------------------------------------
+municipios <- c(
+  3550308,   # Sao Paulo
+  2507507,   # Joao Pessoa
+  3106200,   # Belo Horizonte
+  4314902,   # Porto Alegre
+  1721000,   # Palmas
+  5300108,   # Brasilia
+  5208707    # Goiania
+)
+
+# Calcular matriz de tempo de viagem -----------------------------------
+
+# Configurações do R5R -------------------------------------------------
+options(java.parameters = c("-Xmx2G", "-XX:ActiveProcessorCount=4"))
+Sys.setenv(JAVA_HOME = "C:/Program Files/Java/jdk-21")
+
+hex <- 9
+mode <- c("WALK")
+max_walk_dist <- 3000
+max_trip_duration <- 60
+departure_datetime <- as.POSIXct("13-05-2019 14:00:00",
+                                 format = "%d-%m-%Y %H:%M:%S")
+
+tipos <- c("pantano", "deserto")
+
+for (mun in municipios) {
+
+  message("Processando municipio: ", mun)
+
+  # Caminhos ------------------------------------------------------------
+  dir_mun <- file.path(dir_parcial, mun)
+
+  osmosis_path <- file.path(dir_inputs, "OSM/osmosis-0.49.2/bin/osmosis.bat")
+  br_pbf <- file.path(dir_inputs, "OSM/brazil-latest-filtered.osm.pbf")
+  mun_pbf <- file.path(dir_mun, "redeviaria.osm.pbf")
+
+  caminho_hex_urbanizado <- file.path(dir_mun, "hex/hex_urbanizado.parquet")
+
+  # Extrair bounding box dos hexagonos ---------------------------------
+  mun_hex <- sfarrow::st_read_parquet(caminho_hex_urbanizado)
+  mun_bbox <- st_bbox(mun_hex)
+
+  # Comando Osmosis -----------------------------------------------------
+  osmosis_cmd <- sprintf(
+    "%s --read-pbf %s --bounding-box left=%s bottom=%s right=%s top=%s --write-pbf %s",
+    osmosis_path, br_pbf,
+    mun_bbox["xmin"], mun_bbox["ymin"],
+    mun_bbox["xmax"], mun_bbox["ymax"],
+    mun_pbf
+  )
+
+  # Executar Osmosis ----------------------------------------------------
+  tictoc::tic(msg = paste("Extraindo malha OSM para", mun))
+  shell(osmosis_cmd, translate = TRUE)
+  tictoc::toc()
+
+  # Inicializar R5 ------------------------------------------------------
+  caminho_core <- file.path(dir_parcial, mun)
+  r5r_core <- r5r::setup_r5(data_path = caminho_core, verbose = FALSE)
+
+  # Preparar centroides dos hexagonos ----------------------------------
+  centroides <- mun_hex %>%
+    st_centroid() %>%
+    mutate(
+      id = h3_address,
+      lat = st_coordinates(.)[, 2],
+      lon = st_coordinates(.)[, 1]
+    ) %>%
+    st_drop_geometry() %>%
+    arrange(id)
+
+  # Loop sobre tipos ----------------------------------------------------
+  for (tipo in tipos) {
+    message("Tipo: ", tipo)
+
+    caminho_rais <- file.path(dir_mun, "rais", paste0("rais_", tipo, "_geocod.parquet"))
+    if (!file.exists(caminho_rais)) {
+      message("[Aviso] Arquivo não encontrado: ", caminho_rais)
+      next
+    }
+
+    # Preparar RAIS geocodificado
+    rais <- read_parquet(caminho_rais)
+
+    # Contar NAs antes de remover
+    n_na <- sum(is.na(rais$lat) | is.na(rais$lon))
+    message("Removendo ", n_na, " registros sem coordenadas (lat/lon NA)")
+
+    # Dropar NAs e ordenar
+    rais <- rais %>%
+      tidyr::drop_na(lat, lon)
+
+
+    rais <- rais %>%
+      st_as_sf(coords = c("lon", "lat"), crs = 4326) %>%
+      st_transform(st_crs(mun_hex)) %>%
+      mutate(
+        id = cnpj,
+        lat = st_coordinates(.)[, 2],
+        lon = st_coordinates(.)[, 1]
+      ) %>%
+      st_drop_geometry() %>%
+      arrange(id)
+
+    # Calcular matriz de tempo ------------------------------------------
+    ttm <- r5r::travel_time_matrix(
+      r5r_core = r5r_core,
+      origins = centroides,
+      destinations = rais,
+      mode = mode,
+      departure_datetime = departure_datetime,
+      max_trip_duration = max_trip_duration,
+      verbose = FALSE
+    )
+
+    # Salvar resultado --------------------------------------------------
+    out_dir <- file.path(dir_mun, "rais", "tempos")
+    dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+
+    caminho_saida <- file.path(out_dir, paste0("ttm_", tipo, ".rds"))
+    saveRDS(ttm, file = caminho_saida)
+    message("Arquivo salvo: ", caminho_saida)
+  }
+
+  # Limpar memória ------------------------------------------------------
+  rm(r5r_core)
+  gc()
+
+  message("Municipio ", mun, " concluido.")
+}
+}
+```
+
+## 02.05-rais_calcular_acesso.R
+
+```{r}
+#| eval: false
+
+# --------------------------------- #
+# Produzir geometrias hexagonais para
+# pontos de acesso a estabelecimentos
+# --------------------------------- #
+
+# Bibliotecas ----
+library(arrow)     # leitura de arquivos .parquet
+library(sf)        # operações de geometria
+library(dplyr)     # manipulação de dados
+library(sfarrow)   # leitura de parquet com geometria
+
+# Definir diretorio de trabalho -----------------------------------------
+setwd("D:/CEM_acessoSAN_ac/")
+
+dir_inputs <- "1-inputs" # arquivos de input
+dir_parcial <- "2-parcial" # arquivos intermediarios
+
+# Listar municipios -----------------------------------------------------
+municipios <- c(
+  3550308,   # Sao Paulo
+  2507507,   # Joao Pessoa
+  3106200,   # Belo Horizonte
+  4314902,   # Porto Alegre
+  1721000,   # Palmas
+  5300108,   # Brasilia
+  5208707    # Goiania
+)
+
+# Listar categorias de estabelecimentos
+categorias <- c("deserto", "pantano")
+
+# Calcular acesso -------------------------------------------------------
+for (mun in municipios) {
+
+  cat("Processando município:", mun, "\n")
+
+  # Criar pasta 'acesso'
+  dir_acesso <- file.path(dir_parcial, mun, "acesso")
+  if (!dir.exists(dir_acesso)) dir.create(dir_acesso, recursive = TRUE)
+
+  # Ler hexagonos para municipio ---
+  caminho_hex <- file.path(dir_parcial, mun, "hex/hex_urbanizado.parquet")
+  hex <- sfarrow::st_read_parquet(caminho_hex)
+
+  # Loop nas categorias
+  for (tipo in categorias) {
+
+    cat(" -> Categoria:", tipo, "\n")
+
+    # --------------------------------------------------------------- #
+    caminho_ttm <- file.path(dir_parcial, mun, "rais/tempos", paste0("ttm_", tipo, ".rds"))
+    # Ler tempos de viagem
+    ttm <- readRDS(caminho_ttm)
+
+    # --------------------------------------------------------------- #
+    # Numero de estabelecimentos ate 15 minutos
+    n_acesso_15 <- ttm %>%
+      mutate(tempo_15 = ifelse(travel_time_p50 <= 15, 1, 0)) %>%
+      group_by(from_id) %>%
+      summarise(est_15 = sum(tempo_15, na.rm = TRUE), .groups = "drop")
+
+    # Numero de estabelecimentos por 1000 habitantes
+    n_acesso_15 <- hex %>%
+      left_join(n_acesso_15, by = c("h3_address" = "from_id")) %>%
+      mutate(est_pop_15 = est_15 / pop_bas_mor_tot_pes * 1000) %>%
+      rename(from_id = h3_address) %>%
+      dplyr::select(from_id, est_pop_15)
+
+    n_acesso_15$est_pop_15[is.infinite(n_acesso_15$est_pop_15)] <- NA
+
+    # Salvar resultado
+    write_sf(
+      n_acesso_15,
+      file.path(dir_acesso, paste0("n_estab_15_", tipo, ".gpkg"))
+    )
+
+    # # Tempo minimo médio dos 3 estabelecimentos mais proximos
+    #  tempo_minimo_medio_3 <- ttm %>%
+    #   group_by(from_id) %>%
+    #   summarise(
+    #     tempo_min_medio_3 = mean(head(sort(travel_time_p50), 3), na.rm = TRUE),
+    #     .groups = "drop"
+    #   )
+    #
+    # # Juntar com hexagonos
+    # mun_hex_med_3 <- hex %>%
+    #   left_join(tempo_minimo_medio_3, by = c("h3_address" = "from_id")) #%>%
+    #   #st_transform(31983)
+    #
+    # # Salvar resultado
+    # write_sf(
+    #   mun_hex_med_3,
+    #   file.path(dir_acesso, "tempo_minmed_3_estab.gpkg")
+    # )
+
+    cat("Concluído município:", mun, "\n")
+  }
+}
+```
+
+## contagem_hex_na_00.R
+
+```{r}
+#| eval: false
+
+# Bibliotecas ----
+library(arrow)     # leitura de arquivos .parquet
+library(sf)        # operações de geometria
+library(ggplot2)   # Fazer mapas
+library(dplyr)     # manipulação de dados
+library(sfarrow)   # leitura de parquet com geometria
+library(geobr)     # Ler geometrias de municipios
+library(gridExtra)
+library(grid)
+library(ggnewscale)
+library(cowplot)
+library(ggspatial)
+library(tidyr)
+
+# Definir diretorio de trabalho -----------------------------------------
+setwd("D:/CEM_acessoSAN/")
+
+dir_inputs <- "1-inputs" # arquivos de input
+dir_parcial <- "2-parcial" # arquivos intermediarios
+dir_outputs <- "3-outputs" # arquivos finais
+
+# Listar municipios -----------------------------------------------------
+municipios <- c(
+  3550308,   # Sao Paulo
+  2507507,   # Joao Pessoa
+  3106200,   # Belo Horizonte
+  4314902,   # Porto Alegre
+  1721000,   # Palmas
+  5300108,   # Brasilia
+  5208707    # Goiania
+)
+
+for (mun in municipios) {
+
+  caminho_hex <- file.path(dir_parcial, mun, "hex/hex_urbanizado.parquet")
+  hex <- sfarrow::st_read_parquet(caminho_hex)
+
+  caminho_g0 <- file.path(dir_parcial, mun, "rais/tempos/ttm_g0.rds")
+  acesso_g0 <- readRDS(caminho_g0) %>%
+    mutate(tempo_15 = ifelse(travel_time_p50 <= 15, 1, 0)) %>%
+    mutate(tempo_15 = replace_na(tempo_15, 0)) %>% # MUITO IMPORTA# Bibliotecas ----
+library(arrow)     # leitura de arquivos .parquet
+library(sf)        # operações de geometria
+library(ggplot2)   # Fazer mapas
+library(dplyr)     # manipulação de dados
+library(sfarrow)   # leitura de parquet com geometria
+library(geobr)     # Ler geometrias de municipios
+library(gridExtra)
+library(grid)
+library(ggnewscale)
+library(cowplot)
+library(ggspatial)
+library(tidyr)
+
+# Definir diretorio de trabalho -----------------------------------------
+setwd("D:/CEM_acessoSAN/")
+
+dir_inputs <- "1-inputs" # arquivos de input
+dir_parcial <- "2-parcial" # arquivos intermediarios
+dir_outputs <- "3-outputs" # arquivos finais
+
+# Listar municipios -----------------------------------------------------
+municipios <- c(
+  3550308,   # Sao Paulo
+  2507507,   # Joao Pessoa
+  3106200,   # Belo Horizonte
+  4314902,   # Porto Alegre
+  1721000,   # Palmas
+  5300108,   # Brasilia
+  5208707    # Goiania
+)
+
+for (mun in municipios) {
+
+  caminho_hex <- file.path(dir_parcial, mun, "hex/hex_urbanizado.parquet")
+  hex <- sfarrow::st_read_parquet(caminho_hex)
+
+  caminho_g0 <- file.path(dir_parcial, mun, "rais/tempos/ttm_g0.rds")
+  acesso_g0 <- readRDS(caminho_g0) %>%
+    mutate(tempo_15 = ifelse(travel_time_p50 <= 15, 1, 0)) %>%
+    mutate(tempo_15 = replace_na(tempo_15, 0)) %>% # MUITO IMPORTANTE: +de 60min era NA, agora 0!!!
+    group_by(from_id) %>%
+    summarise(n_g0_15min = sum(tempo_15, na.rm = TRUE), .groups = "drop")
+
+  caminho_g4 <- file.path(dir_parcial, mun, "rais/tempos/ttm_g4.rds")
+  acesso_g4 <- readRDS(caminho_g4) %>%
+    mutate(tempo_15 = ifelse(travel_time_p50 <= 15, 1, 0)) %>%
+    mutate(tempo_15 = replace_na(tempo_15, 0)) %>% # MUITO IMPORTANTE: +de 60min era NA, agora 0!!!
+    group_by(from_id) %>%
+    summarise(n_g4_15min = sum(tempo_15, na.rm = TRUE), .groups = "drop")
+
+  hex_acesso <- hex %>%
+    left_join(acesso_g0, by = c("h3_address" = "from_id")) %>%
+    left_join(acesso_g4, by = c("h3_address" = "from_id")) %>%
+    rename(from_id = h3_address) %>%
+    mutate(
+      rel_g0_g4 = case_when(
+        is.na(n_g0_15min) ~ NA_real_,
+        is.na(n_g4_15min) ~ NA_real_,
+        n_g4_15min == 0 ~ NA_real_,
+        TRUE ~ n_g0_15min / n_g4_15min
+      ),
+
+      indicador_so_g0 = n_g0_15min > 0 & n_g4_15min == 0,
+      indicador_so_g4 = n_g4_15min == 0 & n_g4_15min > 0,
+      indicador_sem_acesso_g0_g4 =
+        (n_g0_15min == 0 | is.na(n_g0_15min)) &
+        (n_g4_15min == 0 | is.na(n_g4_15min))
+    ) %>%
+    select(from_id, n_g0_15min, n_g4_15min, rel_g0_g4,
+           indicador_so_g0, indicador_so_g4, indicador_sem_acesso_g0_g4)
+
+  sf::st_write(hex_acesso, paste0(mun, "_relacao_g0_g4.gpkg"))
+
+}
+NTE: +de 60min era NA, agora 0!!!
+    group_by(from_id) %>%
+    summarise(n_g0_15min = sum(tempo_15, na.rm = TRUE), .groups = "drop")
+
+  caminho_g4 <- file.path(dir_parcial, mun, "rais/tempos/ttm_g4.rds")
+  acesso_g4 <- readRDS(caminho_g4) %>%
+    mutate(tempo_15 = ifelse(travel_time_p50 <= 15, 1, 0)) %>%
+    mutate(tempo_15 = replace_na(tempo_15, 0)) %>% # MUITO IMPORTANTE: +de 60min era NA, agora 0!!!
+    group_by(from_id) %>%
+    summarise(n_g4_15min = sum(tempo_15, na.rm = TRUE), .groups = "drop")
+
+  hex_acesso <- hex %>%
+    left_join(acesso_g0, by = c("h3_address" = "from_id")) %>%
+    left_join(acesso_g4, by = c("h3_address" = "from_id")) %>%
+    rename(from_id = h3_address) %>%
+    mutate(
+      rel_g0_g4 = case_when(
+        is.na(n_g0_15min) ~ NA_real_,
+        is.na(n_g4_15min) ~ NA_real_,
+        n_g4_15min == 0 ~ NA_real_,
+        TRUE ~ n_g0_15min / n_g4_15min
+      ),
+
+      indicador_so_g0 = n_g0_15min > 0 & n_g4_15min == 0,
+      indicador_so_g4 = n_g4_15min == 0 & n_g4_15min > 0,
+      indicador_sem_acesso_g0_g4 =
+        (n_g0_15min == 0 | is.na(n_g0_15min)) &
+        (n_g4_15min == 0 | is.na(n_g4_15min))
+    ) %>%
+    select(from_id, n_g0_15min, n_g4_15min, rel_g0_g4,
+           indicador_so_g0, indicador_so_g4, indicador_sem_acesso_g0_g4)
+
+  sf::st_write(hex_acesso, paste0(mun, "_relacao_g0_g4.gpkg"))
+
+}
 ```
 
 ## Visualize the Data

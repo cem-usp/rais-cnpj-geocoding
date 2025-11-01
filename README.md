@@ -39,12 +39,31 @@ After installing the three dependencies mentioned above and setting all the keys
 
 ## Keys
 
-To access the data and run the [Quarto](https://quarto.org/) notebook, you must first obtain authorization to access the project's [OSF](https://osf.io) repositories.
+To access the data and run the [Quarto](https://quarto.org/) notebook, you must first obtain authorization to access the project's [OSF](https://osf.io) repositories and [Google Sheets](https://workspace.google.com/products/sheets/) files.
 
-Once you have the necessary permissions, create a file named [`.Renviron`](https://bookdown.org/csgillespie/efficientR/set-up.html#:~:text=2.4.6%20The%20.Renviron%20file) in the root directory of the project and add the following environment variables:
+Once you have the necessary permissions, run the following command to authorize your access to the Google Sheets API:
+
+```r
+library(gargle)
+library(googlesheets4)
+
+options(gargle_oauth_cache = ".secrets")
+
+gs4_auth()
+gargle_oauth_cache()
+```
+
+Next, create a file named [`.Renviron`](https://bookdown.org/csgillespie/efficientR/set-up.html#:~:text=2.4.6%20The%20.Renviron%20file) in the root directory of the project and add the following environment variables:
 
 - `OSF_PAT`: Your [OSF](https://osf.io/) Personal Access Token ([PAT](https://en.wikipedia.org/wiki/Personal_access_token)). If you don't have one, go to the settings section of your OSF account and create a new token.
 - `ACESSOSAN_PASSWORD`: The password for the project's [RSA](https://en.wikipedia.org/wiki/RSA_cryptosystem) private key (32 bytes).
+
+Example (do not use these values):
+
+```ini
+OSF_PAT=bWHtQBmdeMvZXDv2R4twdNLjmakjLUZr4t72ouAbNjwycGtDzfm3gjz4ChYXwbBaBVJxJR
+ACESSOSAN_PASSWORD=MmXN_od_pe*RdHgfKTaKiXdV7KD2qPzW
+```
 
 Additionally, you will need the following keys in the project's [`_ssh`](_ssh) folder:
 
