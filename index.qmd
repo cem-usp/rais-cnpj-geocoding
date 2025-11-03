@@ -476,17 +476,17 @@ establishment_data <-
   filter(municipality_code %in% municipalities) |>
   left_join(lookup_data, by = c("cnae", "federal_unit")) |>
   rename(
-    locaisnova_g0 = g0,
-    locaisnova_g1_g2 = g1_g2,
-    locaisnova_g3 = g3,
-    locaisnova_g4 = g4
+    locais_nova_g0 = g0,
+    locais_nova_g1_g2 = g1_g2,
+    locais_nova_g3 = g3,
+    locais_nova_g4 = g4
   ) |>
-  drop_na(locaisnova_g0, locaisnova_g1_g2, locaisnova_g3, locaisnova_g4) |>
+  drop_na(starts_with("locais_nova")) |>
   select(
     cnpj, cnae, registration_status_date,
     region_code, region, state_code, state, federal_unit,
     municipality_code, municipality,
-    locaisnova_g0, locaisnova_g1_g2, locaisnova_g3, locaisnova_g4
+    locais_nova_g0, locais_nova_g1_g2, locais_nova_g3, locais_nova_g4
   )
 ```
 
@@ -706,7 +706,7 @@ rfb_data |> glimpse()
 establishment_data <-
   establishment_data |>
   left_join(rfb_data, by = "cnpj") |>
-  relocate(starts_with("locaisnova"), .after = postal_code)
+  relocate(starts_with("locais_nova"), .after = postal_code)
 ```
 
 ```{r}
@@ -833,7 +833,7 @@ establishment_data <-
     geocodebr_address_found = endereco_encontrado,
     geocodebr_ambiguous = empate
   ) |>
-  relocate(starts_with("locaisnova"), .after = geocodebr_ambiguous) |>
+  relocate(starts_with("locais_nova"), .after = geocodebr_ambiguous) |>
   drop_na(all_of(c("latitude", "longitude")))
 ```
 
@@ -885,10 +885,10 @@ metadata <-
       geocodebr_deviation_meters = "{geocodebr} deviation (meters)",
       geocodebr_address_found = "{geocodebr} address returned",
       geocodebr_ambiguous = "{geocodebr} ambiguous result",
-      locaisnova_g0 = "Locais-Nova Group 0 indicator",
-      locaisnova_g1_g2 = "Locais-Nova Groups 1 and 2 indicator",
-      locaisnova_g3 = "Locais-Nova Group 3 indicator",
-      locaisnova_g4 = "Locais-Nova Group 4 indicator"
+      locais_nova_g0 = "Locais-Nova Group 0 indicator",
+      locais_nova_g1_g2 = "Locais-Nova Groups 1 and 2 indicator",
+      locais_nova_g3 = "Locais-Nova Group 3 indicator",
+      locais_nova_g4 = "Locais-Nova Group 4 indicator"
     )
   ) |>
   generate_dictionary(details = "full") |>
@@ -1080,7 +1080,10 @@ for (i in municipalities) {
     filter(municipality_code == i) |>
     pivot_longer(
       cols = all_of(
-        c("locaisnova_g0", "locaisnova_g1_g2", "locaisnova_g3", "locaisnova_g4")
+        c(
+          "locais_nova_g0", "locais_nova_g1_g2", "locais_nova_g3",
+          "locais_nova_g4"
+        )
       ),
       names_to = "group",
       values_to = "value"
@@ -1099,7 +1102,7 @@ for (i in municipalities) {
     transmute(
       group =
         group |>
-        str_remove("locaisnova_") |>
+        str_remove("locais_nova_") |>
         str_to_upper() |>
         str_replace("_", "-"),
       latitude,
