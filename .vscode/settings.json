@@ -41,6 +41,7 @@
     "cnpjs",
     "colorspace",
     "danielvartan",
+    "destfile",
     "downlit",
     "dplyr",
     "EMPRECSV",
@@ -67,9 +68,11 @@
     "knitr",
     "langid",
     "lapply",
+    "LIBARROW",
     "lightbox",
     "linkedin",
     "lockr",
+    "lubridate",
     "magrittr",
     "montserrat",
     "MUNICCSV",
@@ -95,6 +98,7 @@
     "rvest",
     "scipen",
     "SESAN",
+    "setenv",
     "showtext",
     "SOCIOCSV",
     "SOCIOS",
@@ -117,6 +121,7 @@
     "wickham",
     "wmoldham",
     "youtube",
-    "Zotero"
+    "Zotero",
+    "zstd"
   ],
 }

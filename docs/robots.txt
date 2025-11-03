@@ -1,1 +1,1 @@
-Sitemap: https://cem-usp.github.io/rais-cnpj-geocoding/sitemap.xml
+Sitemap: https://cem-usp.github.io/locais-nova-rais-geocoding/sitemap.xml

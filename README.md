@@ -1,4 +1,4 @@
-# rais-cnpj-geocoding
+# locais-nova-rais-geocoding
 
 <!-- badges: start -->
 [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
@@ -8,33 +8,35 @@
 
 ## Overview
 
-This repository provides a reproducible pipeline for processing and [geocoding](https://en.wikipedia.org/wiki/Address_geocoding) [CNPJ](https://en.wikipedia.org/wiki/CNPJ)s from the Annual Social Information Report ([RAIS](https://www.rais.gov.br/)) of the Brazilian Ministry of Labor and Employment ([MTE](https://www.gov.br/trabalho-e-emprego)). The pipeline was developed by **Gabriel Caldeira** and **Clara Penz**, with further adaptations by [**Daniel Vartanian**](https://github.com/danielvartan).
+This repository provides a reproducible pipeline for processing, [geocoding](https://en.wikipedia.org/wiki/Address_geocoding), and classifying [CNPJ](https://en.wikipedia.org/wiki/CNPJ)s from the Brazilian Annual Social Information Report ([RAIS](https://www.rais.gov.br/)) of the Brazilian Ministry of Labor and Employment ([MTE](https://www.gov.br/trabalho-e-emprego)) using the [Locais-Nova](https://doi.org/10.1590/S2237-96222025v34.20240361.en) scale.
 
-The report is available [here](https://cem-usp.github.io/rais-cnpj-geocoding/).
+The report is available [here](https://cem-usp.github.io/locais-nova-rais-geocoding/).
 
-> If you find this project useful, please consider giving it a star! [![GitHub repo stars](https://img.shields.io/github/stars/cem-usp/logo-pattern)](https://github.com/cem-usp/rais-cnpj-geocoding/)
+> If you find this project useful, please consider giving it a star! [![GitHub repo stars](https://img.shields.io/github/stars/cem-usp/logo-pattern)](https://github.com/cem-usp/locais-nova-rais-geocoding/)
 
 ## Data Availability
 
 [![OSF ID](https://img.shields.io/badge/OSF%20ID-p5ufj-1284C5.svg)](https://osf.io/p5ufj/)
 
-The processed data are available in both [`rds`](https://rdrr.io/r/base/readRDS.html) and [`parquet`](https://en.wikipedia.org/wiki/Apache_Parquet) formats through a dedicated repository on the Open Science Framework ([OSF](https://osf.io/)). A metadata file is included alongside the validated datasets.
+The processed data are available in [`csv`](https://en.wikipedia.org/wiki/Comma-separated_values), [`rds`](https://rdrr.io/r/base/readRDS.html) and [`parquet`](https://en.wikipedia.org/wiki/Apache_Parquet) formats through a dedicated repository on the Open Science Framework ([OSF](https://osf.io/)). A metadata file is included alongside the validated datasets.
 
 Because the raw data are not publicly available, only authorized personnel can access the processed files. They are protected with [RSA](https://en.wikipedia.org/wiki/RSA_cryptosystem) 4096-bit encryption ([OpenSSL](https://www.openssl.org/)) and a 32-byte password to ensure data security.
 
-If you already have access to the OSF repository and the project keys, click [here](https://osf.io/) to access the data. A backup copy of the raw data is also stored on OSF and can be accessed [here](https://osf.io/tdswp/). You can also retrieve these files directly from [R](https://www.r-project.org/) using the [`osfr`](https://docs.ropensci.org/osfr/) package.
+If you already have access to the OSF repository and the project keys, click [here](https://doi.org/10.17605/OSF.IO/p5ufj) to access the data. You can also retrieve these files directly from [R](https://www.r-project.org/) using the [`osfr`](https://docs.ropensci.org/osfr/) package.
 
 ## Usage
 
-The pipeline was developed using the [Quarto](https://quarto.org/) publishing system and the [R programming language](https://www.r-project.org/). To ensure consistent results, the [`renv`](https://rstudio.github.io/renv/) package is used to manage and restore the R environment.
+The pipeline was developed using the [Quarto](https://quarto.org/) publishing system, along with the [R](https://www.r-project.org/) and [AWK](https://en.wikipedia.org/wiki/AWK) programming languages. To ensure consistent results, the [`renv`](https://rstudio.github.io/renv/) package is used to manage and restore the R environment.
 
-Access to the raw data is restricted, as the dataset was obtained upon request and cannot be publicly shared. Running the analyses requires an active internet connection and a set of access keys (see the [*Keys*](#keys) section). Do not use VPNs, corporate proxies, or other network-routing tools while processing the data, as these can interfere with authentication and downloads.
+Access to the raw data is restricted. Running the analyses requires an active internet connection and a set of access keys (see the [*Keys*](#keys) section). Do not use VPNs, corporate proxies, or other network-routing tools while processing the data, as these can interfere with authentication and downloads.
 
-After installing the three dependencies mentioned above and setting all the keys, follow these steps to reproduce the analyses:
+Make sure the AWK executable directory is added to your [PATH](https://en.wikipedia.org/wiki/PATH_(variable)) environment variable.
+
+After installing the four dependencies mentioned above and setting all the keys, follow these steps to reproduce the analyses:
 
 1. **Clone** this repository to your local machine.
 2. **Open** the project in your preferred IDE.
-3. **Restore the R environment** by running [`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html) in the R console. This will install all required software dependencies.
+3. **Restore the R environment** by running `Sys.setenv(LIBARROW_MINIMAL = "false")` and [`renv::restore()`](https://rstudio.github.io/renv/reference/restore.html) in the R console. This will install all required software dependencies.
 4. **Open** `index.qmd` and run the code as described in the report.
 
 ## Keys
@@ -100,19 +102,19 @@ install.packages("arrow")
 
 To cite this work, please use the following format:
 
-Caldeira, G., Penz, C., Vartanian, D., Fernandes, C. N., & Giannotti, M. A. (2025). *A reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE)* \[Computer software\]. Center for Metropolitan Studies of the University of São Paulo. <https://cem-usp.github.io/rais-cnpj-geocoding>
+Caldeira, G., Penz, C., Vartanian, D., Fernandes, C. N., & Giannotti, M. A. (2025). *A reproducible pipeline for processing, geocoding, and classifying CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE) using the Locais-Nova scale* \[Computer software\]. Center for Metropolitan Studies of the University of São Paulo. <https://cem-usp.github.io/locais-nova-rais-geocoding>
 
-A BibLaTeX entry for LaTeX users is
+A BibLaTeX entry for LaTeX users is:
 
 ```latex
 @software{caldeira2025,
-  title = {A reproducible pipeline for processing and geocoding CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE)},
+  title = {A reproducible pipeline for processing, geocoding, and classifying CNPJs from the Annual Social Information Report (RAIS) of the Brazilian Ministry of Labor and Employment (MTE) using the Locais-Nova scale},
   author = {{Gabriel Caldeira} and {Clara Penz} and {Daniel Vartanian} and {Camila Nastari Fernandes} and {Mariana Abrantes Giannotti}},
   year = {2025},
   address = {São Paulo},
   institution = {Center for Metropolitan Studies of the University of São Paulo},
   langid = {en},
-  url = {https://cem-usp.github.io/rais-cnpj-geocoding}
+  url = {https://cem-usp.github.io/locais-nova-rais-geocoding}
 }
 ```
 
@@ -126,7 +128,7 @@ A BibLaTeX entry for LaTeX users is
 
 The code in this repository is licensed under the [GNU General Public License Version 3](https://www.gnu.org/licenses/gpl-3.0), while the report is available under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/).
 
-``` text
+```
 Copyright (C) 2025 Center for Metropolitan Studies
 
 The code in this report is free software: you can redistribute it and/or
