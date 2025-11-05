@@ -462,7 +462,7 @@ establishment_data <-
     cnae = str_pad(co_cnae20_subclasse, 7, pad = "0"),
     registration_status_date = ymd(dt_abertura)
   ) |>
-  # distinct(cnpj, .keep_all = TRUE) |>
+  distinct(cnpj, .keep_all = TRUE) |>
   left_join(
     municipalities_data |>
       mutate(
